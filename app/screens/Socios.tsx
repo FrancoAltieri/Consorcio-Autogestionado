@@ -9,23 +9,34 @@ import { Plus, Mail, Phone, Percent } from 'lucide-react';
 import {saveSocio, getAllSocios, deleteSocio, updateSocio} from "../services/sociosService";
 
 export function Socios() {
-  const [showDialog, setShowDialog] = useState(false);
-  const [sociosList, setSociosList] = useState<Socio[]>([]);
-  const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
-
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     name: "",
     apartment: "",
     participation: "",
     email: "",
     phone: ""
-  });
+  };
+
+  const initialFieldErrors = {
+    name: "",
+    apartment: "",
+    participation: "",
+    email: "",
+    phone: ""
+  };
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [sociosList, setSociosList] = useState<Socio[]>([]);
+  const [editingSocio, setEditingSocio] = useState<Socio | null>(null);
+  const [fieldErrors, setFieldErrors] = useState(initialFieldErrors);
+  const [submitError, setSubmitError] = useState("");
+
+  const [formData, setFormData] = useState(initialFormData);
 
   const fetchSocios = async () => {
     try {
-      const response = await getAllSocios();
-      const allsocios = await response.json();
-      setSociosList(allsocios);
+      const allSocios = await getAllSocios();
+      setSociosList(allSocios);
     } catch (error) {
       console.error("Error al obtener los socios:", error);
       return;
@@ -37,13 +48,42 @@ export function Socios() {
   }, []);
 
   const clearForm = () => {
-    setFormData({
-      name: "",
-      apartment: "",
-      participation: "",
-      email: "",
-      phone: ""
-    });
+    setFormData(initialFormData);
+    setFieldErrors(initialFieldErrors);
+    setSubmitError("");
+  };
+
+  const validateForm = () => {
+    const errors = {
+      name: formData.name.trim() ? "" : "El nombre es obligatorio.",
+      apartment: formData.apartment.trim() ? "" : "El departamento es obligatorio.",
+      email: formData.email.trim() ? "" : "El email es obligatorio.",
+      phone: formData.phone.trim() ? "" : "El teléfono es obligatorio.",
+      participation: ""
+    };
+
+    const participationValue = Number(formData.participation);
+
+    if (!formData.participation.trim()) {
+      errors.participation = "La participación es obligatoria.";
+    } else if (Number.isNaN(participationValue) || participationValue <= 0) {
+      errors.participation = "La participación debe ser mayor a 0.";
+    }
+
+    setFieldErrors(errors);
+    return Object.values(errors).every((value) => value === "");
+  };
+
+  const handleFieldChange = (field: keyof typeof formData, value: string) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+
+    if (fieldErrors[field]) {
+      setFieldErrors((current) => ({ ...current, [field]: "" }));
+    }
+
+    if (submitError) {
+      setSubmitError("");
+    }
   };
 
   const openAddDialog = () => {
@@ -71,19 +111,29 @@ export function Socios() {
   };
 
   const handleAddSocio = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     const nuevoSocio: Socio = {
-      id: Date.now(),
-      name: formData.name,
-      apartment: formData.apartment,
+      id: "",
+      name: formData.name.trim(),
+      apartment: formData.apartment.trim(),
       participation: Number(formData.participation),
-      email: formData.email,
-      phone: formData.phone
+      email: formData.email.trim(),
+      phone: formData.phone.trim()
     };
 
     try {
-        await saveSocio(nuevoSocio);
+        const response = await saveSocio(nuevoSocio);
+
+        if (response.status !== 200) {
+          setSubmitError("No se pudo guardar el socio. Verifica los datos e inténtalo nuevamente.");
+          return;
+        }
     } catch (error) {
         console.error("Error al guardar el socio:", error);
+        setSubmitError("Ocurrió un error al guardar el socio. Inténtalo nuevamente.");
         return;
     }
 
@@ -107,13 +157,17 @@ export function Socios() {
         return;
       }
 
+      if (!validateForm()) {
+        return;
+      }
+
       const socioActualizado: Socio = {
         ...editingSocio,
-        name: formData.name,
-        apartment: formData.apartment,
+        name: formData.name.trim(),
+        apartment: formData.apartment.trim(),
         participation: Number(formData.participation),
-        email: formData.email,
-        phone: formData.phone
+        email: formData.email.trim(),
+        phone: formData.phone.trim()
       };
 
       try {
@@ -143,7 +197,7 @@ export function Socios() {
           <h2 className="text-2xl font-semibold text-gray-900">Socios del Consorcio</h2>
           <p className="text-gray-600 mt-1">Gestiona la información de los socios</p>
         </div>
-        <Dialog open={showDialog} onOpenChange={(open) => {
+        <Dialog open={showDialog} onOpenChange={(open: boolean) => {
           if (!open) {
             closeDialog();
             return;
@@ -162,14 +216,24 @@ export function Socios() {
               <DialogTitle>{editingSocio ? 'Editar Socio' : 'Agregar Nuevo Socio'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
+              {submitError ? (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {submitError}
+                </div>
+              ) : null}
               <div className="space-y-2">
                 <Label htmlFor="nombre">Nombre Completo</Label>
                 <Input 
                   id="nombre"
                   placeholder="Ej: Juan Pérez"
                   value={formData.name}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
-                  />
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleFieldChange("name", e.target.value)}
+                  aria-invalid={Boolean(fieldErrors.name)}
+                  className={fieldErrors.name ? "border-red-300 focus-visible:ring-red-200" : ""}
+                />
+                {fieldErrors.name ? (
+                  <p className="text-xs text-red-600">{fieldErrors.name}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="departamento">Departamento</Label>
@@ -177,8 +241,13 @@ export function Socios() {
                   id="departamento"
                   placeholder="Ej: Depto 1A"
                   value={formData.apartment}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, apartment: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleFieldChange("apartment", e.target.value)}
+                  aria-invalid={Boolean(fieldErrors.apartment)}
+                  className={fieldErrors.apartment ? "border-red-300 focus-visible:ring-red-200" : ""}
                 />
+                {fieldErrors.apartment ? (
+                  <p className="text-xs text-red-600">{fieldErrors.apartment}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="porcentaje">Porcentaje de Participación (%)</Label>
@@ -187,8 +256,13 @@ export function Socios() {
                   type="number"
                   placeholder="Ej: 16.67"
                   value={formData.participation}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, participation: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleFieldChange("participation", e.target.value)}
+                  aria-invalid={Boolean(fieldErrors.participation)}
+                  className={fieldErrors.participation ? "border-red-300 focus-visible:ring-red-200" : ""}
                 />
+                {fieldErrors.participation ? (
+                  <p className="text-xs text-red-600">{fieldErrors.participation}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -197,8 +271,13 @@ export function Socios() {
                   type="email" 
                   placeholder="Ej: juan@example.com"
                   value={formData.email}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleFieldChange("email", e.target.value)}
+                  aria-invalid={Boolean(fieldErrors.email)}
+                  className={fieldErrors.email ? "border-red-300 focus-visible:ring-red-200" : ""}
                 />
+                {fieldErrors.email ? (
+                  <p className="text-xs text-red-600">{fieldErrors.email}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="telefono">Teléfono</Label>
@@ -206,8 +285,13 @@ export function Socios() {
                   id="telefono" 
                   placeholder="Ej: +54 11 1234-5678"
                   value={formData.phone}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleFieldChange("phone", e.target.value)}
+                  aria-invalid={Boolean(fieldErrors.phone)}
+                  className={fieldErrors.phone ? "border-red-300 focus-visible:ring-red-200" : ""}
                 />
+                {fieldErrors.phone ? (
+                  <p className="text-xs text-red-600">{fieldErrors.phone}</p>
+                ) : null}
               </div>
               <div className="flex gap-2 justify-end mt-6">
                 <Button variant="outline" onClick={closeDialog}>
