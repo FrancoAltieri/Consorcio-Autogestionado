@@ -22,6 +22,7 @@ export async function getAllSocios() {
     });
    
     const data = await response.json();
+    console.log(data);
     return data.response;
 }
 

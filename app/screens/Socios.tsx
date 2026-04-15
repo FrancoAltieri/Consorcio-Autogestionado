@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { type Socio } from '@/data/mockData';
-import { Plus, Mail, Phone, Percent } from 'lucide-react';
+import { Plus, Mail, Phone, Percent, CircleAlert } from 'lucide-react';
 import {saveSocio, getAllSocios, deleteSocio, updateSocio} from "../services/sociosService";
 
 export function Socios() {
@@ -128,8 +129,17 @@ export function Socios() {
         const response = await saveSocio(nuevoSocio);
 
         if (response.status !== 200) {
-          setSubmitError("No se pudo guardar el socio. Verifica los datos e inténtalo nuevamente.");
+          let errorMessage = "No se pudo guardar el socio.";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData?.message || errorMessage;
+          } catch (parseError) {
+            console.error("Error al parsear la respuesta de error:", parseError);
+          }
+          setSubmitError(errorMessage);
           return;
+        } else {
+          fetchSocios();
         }
     } catch (error) {
         console.error("Error al guardar el socio:", error);
@@ -137,7 +147,6 @@ export function Socios() {
         return;
     }
 
-    setSociosList([...sociosList, nuevoSocio]);
     closeDialog();
   };
 
@@ -171,9 +180,24 @@ export function Socios() {
       };
 
       try {
-        await updateSocio(socioActualizado);
-      } catch (error) {        
+        const response = await updateSocio(socioActualizado);
+
+        if (response.status !== 200) {
+          let errorMessage = "No se pudo actualizar el socio.";
+
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData?.message || errorMessage;
+          } catch (parseError) {
+            console.error("Error al parsear la respuesta de error:", parseError);
+          }
+
+          setSubmitError(errorMessage);
+          return;
+        }
+      } catch (error) {
         console.error("Error al actualizar el socio:", error);
+        setSubmitError("Ocurrió un error al actualizar el socio. Inténtalo nuevamente.");
         return;
       }
 
@@ -217,9 +241,11 @@ export function Socios() {
             </DialogHeader>
             <div className="space-y-4 mt-4">
               {submitError ? (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {submitError}
-                </div>
+                <Alert variant="destructive">
+                  <CircleAlert className="h-4 w-4" />
+                  <AlertTitle>{editingSocio ? 'No se pudo actualizar el socio' : 'No se pudo guardar el socio'}</AlertTitle>
+                  <AlertDescription>{submitError}</AlertDescription>
+                </Alert>
               ) : null}
               <div className="space-y-2">
                 <Label htmlFor="nombre">Nombre Completo</Label>
