@@ -3,12 +3,12 @@ import { Home, Users, Receipt, Wallet, BarChart3, FileText, Building2 } from 'lu
 
 export function RootLayout() {
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: Home },
-    { path: '/socios', label: 'Socios', icon: Users },
-    { path: '/gastos', label: 'Gastos', icon: Receipt },
-    { path: '/pagos', label: 'Pagos', icon: Wallet },
-    { path: '/balance', label: 'Balance', icon: BarChart3 },
-    { path: '/reportes', label: 'Reportes', icon: FileText },
+    { path: '/app', label: 'Dashboard', icon: Home },
+    { path: '/app/socios', label: 'Socios', icon: Users },
+    { path: '/app/gastos', label: 'Gastos', icon: Receipt },
+    { path: '/app/pagos', label: 'Pagos', icon: Wallet },
+    { path: '/app/balance', label: 'Balance', icon: BarChart3 },
+    { path: '/app/reportes', label: 'Reportes', icon: FileText },
   ];
 
   return (
@@ -36,7 +36,7 @@ export function RootLayout() {
               <NavLink
                 key={path}
                 to={path}
-                end={path === '/'}
+                end={path === '/app'}
                 className={({ isActive }) =>
                   `flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     isActive
