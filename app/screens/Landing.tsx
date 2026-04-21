@@ -107,12 +107,6 @@ const Landing: React.FC = () => {
                 Comenzar Ahora
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <Link
-                to="/login"
-                className="px-8 py-4 text-purple-300 border-2 border-purple-400/50 rounded-xl hover:bg-purple-500/10 transition-all duration-300 hover:scale-105 hover:border-purple-400 font-semibold backdrop-blur-sm"
-              >
-                Ver Demo
-              </Link>
             </motion.div>
           </div>
 
