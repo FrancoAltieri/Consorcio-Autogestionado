@@ -9,11 +9,13 @@ import { Reportes } from "@/screens/Reportes";
 import Landing from "@/screens/Landing";
 import Login from "@/screens/Login";
 import Register from "@/screens/Register";
+import MisConsorcios from "@/screens/MisConsorcios";
 
 export const router = createBrowserRouter([
   { path: "/", Component: Landing },
   { path: "/login", Component: Login },
   { path: "/register", Component: Register },
+  { path: "/mis-consorcios", Component: MisConsorcios },
   {
     path: "/app",
     Component: RootLayout,
