@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useParams, useNavigate } from 'react-router';
-import { Home, Users, Receipt, Wallet, BarChart3, FileText, Building2, LogOut } from 'lucide-react';
+import { Home, Users, Receipt, Wallet, BarChart3, FileText, Building2 } from 'lucide-react';
 import { consorcioService, ConsorcioData } from '@/services/consorcioService';
 import { authService } from '@/services/authService';
 import { useTheme } from '@/contexts/ThemeContext';
 import ThemeSelector from '@/components/ui/ThemeSelector';
+import { UserMenu } from '@/components/ui/UserMenu';
 
 export function RootLayout() {
   const { consorcioId } = useParams();
@@ -53,6 +54,8 @@ export function RootLayout() {
     authService.logout();
     navigate('/login');
   };
+
+  const userInfo = authService.getUserInfo();
 
   const navItems = [
     { path: `/app/${consorcioId}`, label: 'Dashboard', icon: Home },
@@ -108,13 +111,7 @@ export function RootLayout() {
               </div>
             </div>
 
-            <button
-              onClick={handleLogout}
-              className="group flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Cerrar Sesión</span>
-            </button>
+            <UserMenu userName={userInfo.nombre} userEmail={userInfo.email} />
           </div>
         </div>
       </header>

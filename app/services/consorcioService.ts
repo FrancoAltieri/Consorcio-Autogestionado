@@ -8,7 +8,6 @@ export interface ConsorcioData {
     codigoInvitacion: string;
     creadoPor: string;
     fechaCreacion: string;
-    // Corregido: 'USER' coincide con la asignación por defecto de Spring
     rol: 'ADMIN' | 'USER';
     cantidadMiembros: number;
 }
@@ -46,8 +45,6 @@ export const consorcioService = {
     },
 
     async unirseConsorcio(data: UnirseConsorcioRequest): Promise<ConsorcioData> {
-        // CORRECCIÓN: Limpiamos el código antes de enviar (ej: ASD-123 -> ASD123)
-        // Esto asegura que el Backend reciba el formato exacto de la DB
         const codigoLimpio = data.codigoInvitacion.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
         const response = await fetch(`${API_BASE_URL}/consorcios/unirse`, {

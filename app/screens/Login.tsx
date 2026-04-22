@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Building2, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { useNavigate, Link } from 'react-router';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { authService } from '@/services/authService';
 import { useTheme } from '@/contexts/ThemeContext';
 import ThemeSelector from '@/components/ui/ThemeSelector';
+import { loginSchema, LoginFormData } from '@/utils/validationSchemas';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -11,26 +14,26 @@ const Login: React.FC = () => {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+    watch
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    mode: 'onChange'
   });
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setError(null);
-  };
+  const watchedEmail = watch('email');
+  const watchedPassword = watch('password');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
     setError(null);
 
     try {
-      await authService.login({
-        email: formData.email,
-        password: formData.password
-      });
+      await authService.login(data);
       navigate('/mis-consorcios');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
@@ -69,7 +72,7 @@ const Login: React.FC = () => {
             </div>
           )}
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
+          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
             {/* Campo Email */}
             <div className="relative group">
               <label className={`block ${theme.badgeText} text-sm font-medium mb-2 transition-colors duration-500`}>Email</label>
@@ -77,19 +80,16 @@ const Login: React.FC = () => {
                 <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${focusedField === 'email' ? theme.textColor.replace('text-', 'text-') : 'text-gray-400'}`} />
                 <input
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => handleChange('email', e.target.value)}
+                  {...register('email')}
                   onFocus={() => setFocusedField('email')}
                   onBlur={() => setFocusedField(null)}
                   disabled={loading}
                   className={`w-full pl-12 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-current transition-all duration-300 backdrop-blur-sm disabled:opacity-50 ${focusedField === 'email' ? theme.textColor : ''}`}
                   placeholder="tu@email.com"
-                  required
                 />
-                {formData.email && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-400 animate-scale-in" />
-                )}
+                {watchedEmail && !errors.email && <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-400 animate-scale-in" />}
               </div>
+              {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>}
             </div>
 
             {/* Campo Contraseña */}
@@ -99,19 +99,16 @@ const Login: React.FC = () => {
                 <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${focusedField === 'password' ? theme.textColor.replace('text-', 'text-') : 'text-gray-400'}`} />
                 <input
                   type="password"
-                  value={formData.password}
-                  onChange={(e) => handleChange('password', e.target.value)}
+                  {...register('password')}
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
                   disabled={loading}
                   className={`w-full pl-12 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-current transition-all duration-300 backdrop-blur-sm disabled:opacity-50 ${focusedField === 'password' ? theme.textColor : ''}`}
                   placeholder="••••••••"
-                  required
                 />
-                {formData.password && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-400 animate-scale-in" />
-                )}
+                {watchedPassword && !errors.password && <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-400 animate-scale-in" />}
               </div>
+              {errors.password && <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>}
             </div>
 
             <div className="text-right">
@@ -122,7 +119,7 @@ const Login: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isValid}
               className={`w-full py-3 bg-gradient-to-r ${theme.buttonGradient} ${theme.buttonHover} disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 shadow-lg ${theme.buttonShadow}`}
             >
               {loading && <Loader className="w-5 h-5 animate-spin" />}

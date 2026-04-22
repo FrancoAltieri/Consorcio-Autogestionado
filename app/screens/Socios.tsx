@@ -1,5 +1,5 @@
 import { useState, ChangeEvent, useEffect } from 'react';
-import { useParams } from 'react-router';
+import { useParams, useNavigate } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Percent, CircleAlert, Loader2, Copy, Check } from 'lucide-react';
 import { saveSocio, getAllSocios, deleteSocio, updateSocio } from "../services/sociosService";
 import { consorcioService } from '../services/consorcioService';
+import { authService } from '../services/authService';
 
 interface Socio {
   id: number;
@@ -24,8 +25,10 @@ interface Socio {
 
 export function Socios() {
   const { consorcioId } = useParams<{ consorcioId: string }>();
+  const navigate = useNavigate();
   const [consorcio, setConsorcio] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   const initialFormData = {
     apartment: "",
@@ -58,10 +61,16 @@ export function Socios() {
   };
 
   const fetchSocios = async () => {
+    if (!consorcioId) return;
     setLoading(true);
     try {
-      const data = await getAllSocios();
+      const data = await getAllSocios(consorcioId);
       setSociosList(Array.isArray(data) ? data : []);
+
+      // Obtener el rol del usuario actual
+      const userId = authService.getUserId();
+      const currentSocio = data.find((socio: Socio) => socio.userId === userId);
+      setCurrentUserRole(currentSocio ? currentSocio.role : null);
     } catch (error) {
       console.error("Error al obtener los socios:", error);
       setSociosList([]);
@@ -126,6 +135,16 @@ export function Socios() {
     if (!confirm("¿Estás seguro de eliminar este socio?")) return;
     try {
       await deleteSocio(id);
+
+      // Verificar si el socio eliminado es el usuario actual
+      const userId = authService.getUserId();
+      const socioEliminado = sociosList.find(socio => socio.id === id);
+      if (socioEliminado && socioEliminado.userId === userId) {
+        // Redirigir a MisConsorcios
+        navigate('/mis-consorcios');
+        return;
+      }
+
       fetchSocios();
     } catch (error) {
       console.error("Error al eliminar el socio:", error);
@@ -243,15 +262,16 @@ export function Socios() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <span className="font-medium">Rol:</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    socio.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
-                  }`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${socio.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
+                    }`}>
                     {socio.role === 'ADMIN' ? 'Administrador' : 'Miembro'}
                   </span>
                 </div>
                 <div className="pt-3 flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditDialog(socio)}>Editar</Button>
-                  <Button variant="outline" size="sm" className="flex-1 text-red-600 hover:bg-red-50" onClick={() => handleDeleteSocio(socio.id)}>Eliminar</Button>
+                  {currentUserRole === 'ADMIN' && (
+                    <Button variant="outline" size="sm" className="flex-1 text-red-600 hover:bg-red-50" onClick={() => handleDeleteSocio(socio.id)}>Eliminar</Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

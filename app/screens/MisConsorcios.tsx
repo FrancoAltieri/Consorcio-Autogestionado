@@ -42,8 +42,7 @@ const MisConsorcios: React.FC = () => {
 
   const handleCrearConsorcio = async (nombre: string) => {
     const result = await consorcioService.crearConsorcio({ nombre });
-    setConsorcios([...consorcios, result]);
-    setShowCreateModal(false);
+    setConsorcios(prev => [...prev, result]);
     return result;
   };
 
@@ -171,8 +170,8 @@ const MisConsorcios: React.FC = () => {
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-xl font-bold text-white group-hover:text-white transition-colors">{consorcio.nombre}</h3>
                         <span className={`px-2 py-0.5 border rounded-full text-[10px] font-bold uppercase tracking-wider ${consorcio.rol === 'ADMIN'
-                            ? 'bg-white/20 border-white/30 text-white'
-                            : 'bg-blue-500/20 border-blue-400/30 text-blue-200'
+                          ? 'bg-white/20 border-white/30 text-white'
+                          : 'bg-blue-500/20 border-blue-400/30 text-blue-200'
                           }`}>
                           {consorcio.rol}
                         </span>

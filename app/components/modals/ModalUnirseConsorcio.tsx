@@ -8,7 +8,7 @@ interface ModalUnirseConsorcioProps {
 }
 
 const ModalUnirseConsorcio: React.FC<ModalUnirseConsorcioProps> = ({ isOpen, onClose, onUnirse }) => {
-  const [displayCodigo, setDisplayCodigo] = useState(''); // Lo que ve el usuario (con guion)
+  const [displayCodigo, setDisplayCodigo] = useState(''); // Estado para el código con formato (XXX-111)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -18,7 +18,6 @@ const ModalUnirseConsorcio: React.FC<ModalUnirseConsorcioProps> = ({ isOpen, onC
     setLoading(true);
     setError(null);
 
-    // Sanitización: Quitamos el guion antes de enviarlo al Backend
     const codigoLimpio = displayCodigo.replace('-', '');
 
     try {
@@ -44,10 +43,8 @@ const ModalUnirseConsorcio: React.FC<ModalUnirseConsorcioProps> = ({ isOpen, onC
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.toUpperCase();
 
-    // 1. Limpiar: Solo permitir letras y números
     const cleanValue = value.replace(/[^A-Z0-9]/g, '');
 
-    // 2. Aplicar Chunking (formato XXX-111)
     let formatted = cleanValue;
     if (cleanValue.length > 3) {
       formatted = cleanValue.slice(0, 3) + '-' + cleanValue.slice(3, 6);
@@ -96,7 +93,7 @@ const ModalUnirseConsorcio: React.FC<ModalUnirseConsorcioProps> = ({ isOpen, onC
                 disabled={loading}
                 className="w-full px-4 py-4 border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 outline-none disabled:opacity-50 transition-all text-center font-mono font-bold text-3xl tracking-[0.2em] text-purple-600 placeholder:text-gray-200"
                 placeholder="ABC-123"
-                maxLength={7} // Importante: 6 caracteres + 1 guion
+                maxLength={7} // 6 caracteres + 1 guion
                 required
                 autoComplete="off"
                 spellCheck="false"
