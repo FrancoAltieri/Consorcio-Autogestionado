@@ -17,7 +17,7 @@ export const router = createBrowserRouter([
   { path: "/register", Component: Register },
   { path: "/mis-consorcios", Component: MisConsorcios },
   {
-    path: "/app",
+    path: "/app/:consorcioId",
     Component: RootLayout,
     children: [
       { index: true, Component: Dashboard },

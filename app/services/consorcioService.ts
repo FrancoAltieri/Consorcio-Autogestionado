@@ -8,7 +8,8 @@ export interface ConsorcioData {
     codigoInvitacion: string;
     creadoPor: string;
     fechaCreacion: string;
-    rol: 'ADMIN' | 'MEMBER';
+    // Corregido: 'USER' coincide con la asignación por defecto de Spring
+    rol: 'ADMIN' | 'USER';
     cantidadMiembros: number;
 }
 
@@ -37,7 +38,7 @@ export const consorcioService = {
         });
 
         if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({}));
             throw new Error(error.message || "Error al crear el consorcio");
         }
 
@@ -45,15 +46,19 @@ export const consorcioService = {
     },
 
     async unirseConsorcio(data: UnirseConsorcioRequest): Promise<ConsorcioData> {
+        // CORRECCIÓN: Limpiamos el código antes de enviar (ej: ASD-123 -> ASD123)
+        // Esto asegura que el Backend reciba el formato exacto de la DB
+        const codigoLimpio = data.codigoInvitacion.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
         const response = await fetch(`${API_BASE_URL}/consorcios/unirse`, {
             method: "POST",
             headers: getAuthHeader(),
-            body: JSON.stringify(data),
+            body: JSON.stringify({ codigoInvitacion: codigoLimpio }),
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || "Error al unirse al consorcio");
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.message || "Código inválido o ya eres miembro de este consorcio");
         }
 
         return await response.json();
@@ -66,11 +71,26 @@ export const consorcioService = {
         });
 
         if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({}));
             throw new Error(error.message || "Error al obtener consorcios");
         }
 
         const data = await response.json();
-        return data.consorcios || [];
+        // Maneja tanto el objeto con propiedad .consorcios como el array directo
+        return data.consorcios || data || [];
+    },
+
+    async getConsorcioById(consorcioId: number | string): Promise<ConsorcioData> {
+        const response = await fetch(`${API_BASE_URL}/consorcios/${consorcioId}`, {
+            method: "GET",
+            headers: getAuthHeader(),
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.message || "Error al obtener el consorcio");
+        }
+
+        return await response.json();
     },
 };

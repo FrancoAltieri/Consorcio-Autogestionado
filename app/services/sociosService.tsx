@@ -1,49 +1,50 @@
-const baseUrl = import.meta.env.VITE_API_BASE_URL;
+// sociosService.ts corregido
+import { authService } from './authService';
+
+const baseUrl = import.meta.env.VITE_API_BASE_URL + "/partner"; // <--- AGREGADO /partner
+
+const getAuthHeaders = () => ({
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${authService.getToken()}`
+});
+
+export async function getAllSocios() {
+    const url = `${baseUrl}/all`;
+    const response = await fetch(url, {
+        method: "GET",
+        headers: getAuthHeaders()
+    });
+
+    if (!response.ok) throw new Error("Error al obtener socios");
+
+    const data = await response.json();
+    // El controlador devuelve: Map.of("response", partnerList)
+    // Por lo tanto, necesitamos data.response
+    return Array.isArray(data.response) ? data.response : [];
+}
 
 export async function saveSocio(socio: any) {
-    var url = baseUrl + "/save";
-    
+    const url = `${baseUrl}/save`;
     return fetch(url, {
         method: "POST",
-        headers: {
-        "Content-Type": "application/json"
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(socio)
     });
 }
 
-export async function getAllSocios() {
-    var url = baseUrl + "/all";
-    const response = await fetch(url, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json"
-        }
-    });
-   
-    const data = await response.json();
-    console.log(data);
-    return data.response;
-}
-
 export async function deleteSocio(id: number) {
-    var url = baseUrl + "/delete/" + id;
+    const url = `${baseUrl}/delete/${id}`;
     return fetch(url, {
         method: "DELETE",
-        headers: {
-            "Content-Type": "application/json"
-        }
+        headers: getAuthHeaders()
     });
 }
 
 export async function updateSocio(socio: any) {
-    var url = baseUrl + "/edit";
+    const url = `${baseUrl}/edit`;
     return fetch(url, {
         method: "PUT",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(socio)
     });
-
 }

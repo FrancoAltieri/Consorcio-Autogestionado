@@ -1,13 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useParams } from 'react-router';
 import { socios, calcularBalance } from '@/data/mockData';
-import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Download } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Download, InfoIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export function Balance() {
+  const { consorcioId } = useParams();
   const balanceData = calcularBalance();
-  
+
   const chartData = socios.map(socio => {
     const balance = balanceData.find(b => b.socioId === socio.id);
     return {
@@ -24,10 +26,22 @@ export function Balance() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-semibold text-gray-900">Balance Mensual</h2>
+        <p className="text-gray-600 mt-1">Estado de cuentas de cada socio - Marzo 2026</p>
+      </div>
+
+      {/* Info Banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+        <InfoIcon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-medium text-blue-900">Consorcio: #{consorcioId}</p>
+          <p className="text-xs text-blue-700 mt-1">Visualizando datos de prueba. El balance real se calculará automáticamente desde los datos del backend.</p>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Balance Mensual</h2>
-          <p className="text-gray-600 mt-1">Estado de cuentas de cada socio - Marzo 2026</p>
         </div>
         <Button className="bg-blue-600 hover:bg-blue-700">
           <Download className="w-4 h-4 mr-2" />
@@ -132,7 +146,7 @@ export function Balance() {
                 {balanceData.map((balance) => {
                   const socio = socios.find(s => s.id === balance.socioId);
                   const saldo = balance.pagosPagados + balance.gastosRealizados - balance.debeAportar;
-                  
+
                   return (
                     <tr key={balance.socioId} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm">
