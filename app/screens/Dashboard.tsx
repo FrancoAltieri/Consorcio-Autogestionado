@@ -1,9 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { socios, gastos, pagos, calcularBalance } from '@/data/mockData';
-import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Users, Receipt } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Users, Receipt, InfoIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useParams } from 'react-router';
 
 export function Dashboard() {
+  const { consorcioId } = useParams();
   const balance = calcularBalance();
   const gastosAprobados = gastos.filter(g => g.aprobado);
   const gastosPendientes = gastos.filter(g => !g.aprobado);
@@ -29,6 +31,15 @@ export function Dashboard() {
       <div>
         <h2 className="text-2xl font-semibold text-gray-900">Dashboard</h2>
         <p className="text-gray-600 mt-1">Resumen del estado del consorcio - Marzo 2026</p>
+      </div>
+
+      {/* Info Banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+        <InfoIcon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-medium text-blue-900">Consorcio: #{consorcioId}</p>
+          <p className="text-xs text-blue-700 mt-1">Actualmente visualizando datos de prueba. Los datos en tiempo real serán disponibles cuando el backend esté completamente configurado.</p>
+        </div>
       </div>
 
       {/* Stats Cards */}

@@ -1,49 +1,56 @@
-const baseUrl = import.meta.env.VITE_API_BASE_URL;
+import { authService } from './authService';
+
+const baseUrl = import.meta.env.VITE_API_BASE_URL + "/partner";
+
+const getAuthHeaders = () => ({
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${authService.getToken()}`
+});
+
+/**
+ * Obtiene los socios filtrados por el ID del consorcio actual.
+ * @param consorcioId ID del consorcio obtenido de los params de la URL
+ */
+export async function getAllSocios(consorcioId: string | number) {
+    const url = `${baseUrl}/all?consorcioId=${consorcioId}`;
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers: getAuthHeaders()
+    });
+
+    if (!response.ok) throw new Error("Error al obtener los socios de este consorcio");
+
+    const data = await response.json();
+    return Array.isArray(data.response) ? data.response : [];
+}
 
 export async function saveSocio(socio: any) {
-    var url = baseUrl + "/save";
-    
+    const url = `${baseUrl}/save`;
     return fetch(url, {
         method: "POST",
-        headers: {
-        "Content-Type": "application/json"
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(socio)
     });
 }
 
-export async function getAllSocios() {
-    var url = baseUrl + "/all";
-    const response = await fetch(url, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json"
-        }
-    });
-   
-    const data = await response.json();
-    console.log(data);
-    return data.response;
-}
-
+/**
+ * Elimina un socio por su ID. 
+ * Recordar que en el backend hay que validar que el socio pertenezca al consorcio del admin
+ */
 export async function deleteSocio(id: number) {
-    var url = baseUrl + "/delete/" + id;
+    const url = `${baseUrl}/delete/${id}`;
     return fetch(url, {
         method: "DELETE",
-        headers: {
-            "Content-Type": "application/json"
-        }
+        headers: getAuthHeaders()
     });
 }
 
 export async function updateSocio(socio: any) {
-    var url = baseUrl + "/edit";
+    const url = `${baseUrl}/edit`;
     return fetch(url, {
         method: "PUT",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(socio)
     });
-
 }

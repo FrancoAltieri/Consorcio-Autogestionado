@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useParams } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { pagos, socios } from '@/data/mockData';
-import { Plus, Calendar, CreditCard, DollarSign } from 'lucide-react';
+import { Plus, Calendar, CreditCard, DollarSign, InfoIcon } from 'lucide-react';
 
 export function Pagos() {
+  const { consorcioId } = useParams();
   const [showDialog, setShowDialog] = useState(false);
 
   const totalPagos = pagos.reduce((sum, p) => sum + p.monto, 0);
@@ -17,11 +19,22 @@ export function Pagos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div>
+        <h2 className="text-2xl font-semibold text-gray-900">Pagos de Expensas</h2>
+        <p className="text-gray-600 mt-1">Registra y gestiona los pagos de los socios</p>
+      </div>
+
+      {/* Info Banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+        <InfoIcon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Pagos de Expensas</h2>
-          <p className="text-gray-600 mt-1">Registra y gestiona los pagos de los socios</p>
+          <p className="text-sm font-medium text-blue-900">Consorcio: #{consorcioId}</p>
+          <p className="text-xs text-blue-700 mt-1">Visualizando datos de prueba. Los pagos reales serán almacenados en la base de datos una vez completado el desarrollo del backend.</p>
         </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div></div>
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700">
@@ -139,16 +152,14 @@ export function Pagos() {
               const socoPagos = pagos.filter(p => p.socioId === socio.id);
               const totalPagado = socoPagos.reduce((sum, p) => sum + p.monto, 0);
               const tienePagos = socoPagos.length > 0;
-              
+
               return (
                 <div key={socio.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      tienePagos ? 'bg-green-100' : 'bg-red-100'
-                    }`}>
-                      <DollarSign className={`w-5 h-5 ${
-                        tienePagos ? 'text-green-600' : 'text-red-600'
-                      }`} />
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tienePagos ? 'bg-green-100' : 'bg-red-100'
+                      }`}>
+                      <DollarSign className={`w-5 h-5 ${tienePagos ? 'text-green-600' : 'text-red-600'
+                        }`} />
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">{socio.nombre}</p>

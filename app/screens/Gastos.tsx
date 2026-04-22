@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useParams } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { gastos, socios } from '@/data/mockData';
-import { Plus, Check, X, Calendar } from 'lucide-react';
+import { Plus, Check, X, Calendar, InfoIcon } from 'lucide-react';
 
 export function Gastos() {
+  const { consorcioId } = useParams();
   const [showDialog, setShowDialog] = useState(false);
   const [filter, setFilter] = useState<'todos' | 'aprobados' | 'pendientes'>('todos');
 
@@ -26,11 +28,22 @@ export function Gastos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div>
+        <h2 className="text-2xl font-semibold text-gray-900">Gastos Comunes</h2>
+        <p className="text-gray-600 mt-1">Gestiona y aprueba los gastos del consorcio</p>
+      </div>
+
+      {/* Info Banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+        <InfoIcon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Gastos Comunes</h2>
-          <p className="text-gray-600 mt-1">Gestiona y aprueba los gastos del consorcio</p>
+          <p className="text-sm font-medium text-blue-900">Consorcio: #{consorcioId}</p>
+          <p className="text-xs text-blue-700 mt-1">Visualizando datos de prueba. Los gastos reales serán almacenados en la base de datos una vez completado el desarrollo del backend.</p>
         </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div></div>
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700">
