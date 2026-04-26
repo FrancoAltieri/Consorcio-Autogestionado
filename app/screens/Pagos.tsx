@@ -1,36 +1,194 @@
-import { useState } from 'react';
-import { useParams } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Percent, CircleAlert, Loader2, Copy, Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { pagos, socios } from '@/data/mockData';
+// import { pagos, socios } from '@/data/mockData';
 import { Plus, Calendar, CreditCard, DollarSign, InfoIcon } from 'lucide-react';
+import { pagoService } from '../services/pagosService';
+//import { savePago } from '../services/pagosService';
+import { getAllSocios } from '../services/sociosService';
+
+interface Pago {
+  id?: number,
+  partnerId: number;
+  paymentDate: string;
+  period: string;
+  amount: number;
+  paymentMethod: string;
+  description: string;
+}
+
+interface Socio {
+  id: number;
+  name: string;
+  apartment: string;
+}
 
 export function Pagos() {
-  const { consorcioId } = useParams();
-  const [showDialog, setShowDialog] = useState(false);
+  const { consorcioId } = useParams<{ consorcioId: string }>();
+  const navigate = useNavigate();
+  //const [pagos, setPagos] = useState<Pago[]>([]);
 
-  const totalPagos = pagos.reduce((sum, p) => sum + p.monto, 0);
-  const sociosQuePagaron = new Set(pagos.map(p => p.socioId)).size;
+  const initialFormData = {
+    partnerId: "",
+    paymentDate: new Date().toISOString().split('T')[0],
+    period: "",
+    amount: "",
+    paymentMethod: "",
+    description: ""
+  };
+
+  const initialFieldErrors = {
+    partnerId: "",
+    paymentDate: "",
+    period: "",
+    amount: "",
+    paymentMethod: "",
+    description: ""
+  };
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [pagosList, setPagosList] = useState<Pago[]>([]);
+  const [sociosList, setSociosList] = useState<Socio[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fieldErrors, setFieldErrors] = useState(initialFieldErrors);
+  const [submitError, setSubmitError] = useState('');
+  const [formData, setFormData] = useState(initialFormData);
+
+
+
+  const totalPagos = pagosList.reduce((sum, p) => sum + p.amount, 0);
+  const sociosQuePagaron = new Set(pagosList.map(p => p.partnerId)).size;
+
+  const fetchPagos = async () => {
+    if (!consorcioId) return;
+    setLoading(true);
+    try {
+      const data = await pagoService.getAllPagos(consorcioId!);
+      setPagosList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error al cargar los pagos:", error);
+      setPagosList([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSocios = async () => {
+    if (!consorcioId) return;
+    try {
+      const data = await getAllSocios(consorcioId);
+      setSociosList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error al obtener los socios:", error);
+      setSociosList([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchPagos();
+    fetchSocios();
+  }, [consorcioId]);
+
+  const clearForm = () => {
+    setFormData(initialFormData);
+    setFieldErrors(initialFieldErrors);
+    setSubmitError("");
+  };
+
+  const validateForm = () => {
+    const errors = {
+      paymentDate: formData.paymentDate ? "" : "La fecha es obligatoria.",
+      partnerId: formData.partnerId ? "" : "El socio es obligatorio.",
+      period: formData.period ? "" : "El mes es obligatorio.",
+      amount: formData.amount ? "" : "El monto es obligatorio.",
+      paymentMethod: formData.paymentMethod ? "" : "El método de pago es obligatorio.",
+      description: ""
+    };
+
+    if (!formData.amount.trim()) {
+      errors.amount = "El monto es obligatorio.";
+    } else if (Number.isNaN(formData.amount) || Number(formData.amount) <= 0) {
+      errors.amount = "El monto debe ser mayor a 0.";
+    }
+
+    setFieldErrors(errors);
+    return Object.values(errors).every(error => error === "");
+  };
+
+  const handleFieldChange = (field: keyof typeof formData, value: string | number) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+    if (fieldErrors[field]) setFieldErrors((current) => ({ ...current, [field]: "" }));
+    if (submitError) setSubmitError("");
+  };
+
+  const closeDialog = () => {
+    setShowDialog(false);
+    clearForm();
+  };
+
+  const handleAddPago = async () => {
+    if (!validateForm()) return;
+
+    const formattedPeriod = formData.period + "-01";
+
+    const nuevoPago: Pago = {
+      partnerId: Number(formData.partnerId),
+      paymentDate: formData.paymentDate,
+      period: formattedPeriod,  //YYYY-MM-DD
+      amount: Number(formData.amount),
+      paymentMethod: formData.paymentMethod,
+      description: formData.description || ""
+    }
+
+    try {
+      const response = await pagoService.savePago(nuevoPago);
+
+      if (response.status !== 200) {
+        setSubmitError("No se pudo guardar el pago. Verifica los datos e inténtalo nuevamente.");
+        let errorMessage = "No se pudo guardar el pago.";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData?.message || errorMessage;
+        } catch (parseError) {
+          console.error("Error al parsear la respuesta de error:", parseError);
+        }
+        setSubmitError(errorMessage);
+        return;
+      } else {
+        fetchPagos();
+      }
+
+    } catch (error) {
+      console.error("Error al guardar el pago:", error);
+      setSubmitError("Ocurrió un error al guardar el pago. Inténtalo nuevamente.");
+      return;
+    }
+
+    setPagosList([...pagosList, nuevoPago]);
+    closeDialog();
+  };
+
+  const formatPeriod = (periodDate: string) => {
+    if (!periodDate) return "";
+    const date = new Date(periodDate);
+    const month = date.toLocaleDateString('es-ES', { month: 'long' });
+    const year = date.getFullYear();
+    return month.charAt(0).toUpperCase() + month.slice(1) + ' ' + year;
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold text-gray-900">Pagos de Expensas</h2>
         <p className="text-gray-600 mt-1">Registra y gestiona los pagos de los socios</p>
-      </div>
-
-      {/* Info Banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-        <InfoIcon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-medium text-blue-900">Consorcio: #{consorcioId}</p>
-          <p className="text-xs text-blue-700 mt-1">Visualizando datos de prueba. Los pagos reales serán almacenados en la base de datos una vez completado el desarrollo del backend.</p>
-        </div>
       </div>
 
       <div className="flex items-center justify-between">
@@ -47,60 +205,99 @@ export function Pagos() {
               <DialogTitle>Registrar Nuevo Pago</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
+              {submitError && (
+                <Alert variant="destructive">
+                  <CircleAlert className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{submitError}</AlertDescription>
+                </Alert>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="fecha-pago">Fecha de Pago</Label>
-                <Input id="fecha-pago" type="date" defaultValue="2026-03-22" />
+                <Input
+                  id="paymentDate"
+                  type="date"
+                  value={formData.paymentDate}
+                  onChange={(e) => handleFieldChange('paymentDate', e.target.value)}
+                  className={fieldErrors.paymentDate ? "border-red-500" : ""}
+                />
+                {fieldErrors.paymentDate && (
+                  <p className="text-red-500 text-xs">{fieldErrors.paymentDate}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="socio-pago">Socio</Label>
-                <Select>
-                  <SelectTrigger>
+                <Select
+                  value={formData.partnerId}
+                  onValueChange={(value: string) => handleFieldChange('partnerId', value)}>
+                  <SelectTrigger className={fieldErrors.partnerId ? "border-red-500" : ""}>
                     <SelectValue placeholder="Selecciona socio" />
                   </SelectTrigger>
                   <SelectContent>
-                    {socios.map(socio => (
+                    {sociosList.map(socio => (
                       <SelectItem key={socio.id} value={socio.id}>
-                        {socio.nombre} - {socio.departamento}
+                        {socio.name} - {socio.apartment}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldErrors.partnerId && (
+                  <p className="text-red-500 text-xs">{fieldErrors.partnerId}</p>
+                )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="mes">Mes de Pago</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona mes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="enero">Enero 2026</SelectItem>
-                    <SelectItem value="febrero">Febrero 2026</SelectItem>
-                    <SelectItem value="marzo">Marzo 2026</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="periodo">Mes de Pago</Label>
+                <Input
+                  id="periodo"
+                  type="month"
+                  value={formData.period}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('period', e.target.value)}
+                  className={fieldErrors.period ? "border-red-500" : ""}
+                />
+                {fieldErrors.period && (
+                  <p className="text-red-500 text-xs">{fieldErrors.period}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="monto-pago">Monto ($)</Label>
-                <Input id="monto-pago" type="number" placeholder="0" />
+                <Input
+                  id="monto-pago"
+                  type="number"
+                  placeholder="0"
+                  value={formData.amount}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFieldChange('amount', e.target.value)}
+                  className={fieldErrors.amount ? "border-red-500" : ""}
+                />
+                {fieldErrors.amount && (
+                  <p className="text-red-500 text-xs">{fieldErrors.amount}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="metodo">Método de Pago</Label>
-                <Select>
-                  <SelectTrigger>
+                <Select
+                  value={formData.paymentMethod}
+                  onValueChange={(value: string) => handleFieldChange('paymentMethod', value)}
+                >
+                  <SelectTrigger className={fieldErrors.paymentMethod ? "border-red-500" : ""}>
                     <SelectValue placeholder="Selecciona método" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="transferencia">Transferencia</SelectItem>
-                    <SelectItem value="efectivo">Efectivo</SelectItem>
-                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="CASH">Efectivo</SelectItem>
+                    <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                    <SelectItem value="CREDIT_CARD">Tarjeta Crédito</SelectItem>
+                    <SelectItem value="DEBIT_CARD">Tarjeta Débito</SelectItem>
+                    <SelectItem value="OTHER">Otro</SelectItem>
                   </SelectContent>
                 </Select>
+                {fieldErrors.paymentMethod && (
+                  <p className="text-red-500 text-xs">{fieldErrors.paymentMethod}</p>
+                )}
               </div>
               <div className="flex gap-2 justify-end mt-6">
-                <Button variant="outline" onClick={() => setShowDialog(false)}>
+                <Button variant="outline" onClick={closeDialog}>
                   Cancelar
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setShowDialog(false)}>
+                <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleAddPago}>
                   Registrar Pago
                 </Button>
               </div>
@@ -126,7 +323,7 @@ export function Pagos() {
             <CardTitle className="text-sm font-medium text-gray-600">Pagos Registrados</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">{pagos.length}</div>
+            <div className="text-2xl font-semibold">{pagosList.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -135,7 +332,7 @@ export function Pagos() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">
-              {sociosQuePagaron} / {socios.length}
+              {sociosQuePagaron} / {sociosList.length}
             </div>
           </CardContent>
         </Card>
@@ -148,9 +345,9 @@ export function Pagos() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {socios.map((socio) => {
-              const socoPagos = pagos.filter(p => p.socioId === socio.id);
-              const totalPagado = socoPagos.reduce((sum, p) => sum + p.monto, 0);
+            {sociosList.map((socio) => {
+              const socoPagos = pagosList.filter(p => p.partnerId === socio.id);
+              const totalPagado = socoPagos.reduce((sum, p) => sum + p.amount, 0);
               const tienePagos = socoPagos.length > 0;
 
               return (
@@ -162,8 +359,8 @@ export function Pagos() {
                         }`} />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{socio.nombre}</p>
-                      <p className="text-sm text-gray-500">{socio.departamento}</p>
+                      <p className="font-medium text-gray-900">{socio.name}</p>
+                      <p className="text-sm text-gray-500">{socio.apartment}</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -209,33 +406,33 @@ export function Pagos() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {pagos.map((pago) => {
-                  const socio = socios.find(s => s.id === pago.socioId);
+                {pagosList.map((pago) => {
+                  const socio = sociosList.find(s => s.id === pago.partnerId);
                   return (
                     <tr key={pago.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-gray-400" />
-                          {new Date(pago.fecha).toLocaleDateString('es-AR')}
+                          {new Date(pago.paymentDate).toLocaleDateString('es-AR')}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         <div>
-                          <div className="font-medium">{socio?.nombre}</div>
-                          <div className="text-gray-500">{socio?.departamento}</div>
+                          <div className="font-medium">{socio?.name}</div>
+                          <div className="text-gray-500">{socio?.apartment}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {pago.mes}
+                        {formatPeriod(pago.period)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <div className="flex items-center gap-2">
                           <CreditCard className="w-4 h-4 text-gray-400" />
-                          <Badge variant="outline">{pago.metodo}</Badge>
+                          <Badge variant="outline">{pago.paymentMethod}</Badge>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                        ${pago.monto.toLocaleString('es-AR')}
+                        ${pago.amount.toLocaleString('es-AR')}
                       </td>
                     </tr>
                   );
