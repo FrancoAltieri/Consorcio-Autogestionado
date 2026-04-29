@@ -20,3 +20,13 @@ export async function getAllGastos (consorcioId: string | number) {
     const data = await response.json();
     return Array.isArray(data.response) ? data.response : [];
 }
+
+export async function saveGasto(gasto: any) {
+    console.log("Guardando gasto:", gasto);
+    const url = `${baseUrl}/save`;
+    return fetch(url, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(gasto)
+    });
+}
