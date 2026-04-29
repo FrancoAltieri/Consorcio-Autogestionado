@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,13 +8,42 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { gastos, socios } from '@/data/mockData';
 import { Plus, Check, X, Calendar, InfoIcon } from 'lucide-react';
+import { getAllSocios } from '../services/sociosService';
+import { getAllGastos } from '../services/gastosService';
 
 export function Gastos() {
   const { consorcioId } = useParams();
   const [showDialog, setShowDialog] = useState(false);
   const [filter, setFilter] = useState<'todos' | 'aprobados' | 'pendientes'>('todos');
+  const [socios, setSocios] = useState([]);
+  const [gastos, setGastos] = useState([]);
+
+  const newGasto = [
+    
+  ];
+
+  const handleSaveGasto  = () => {
+
+  }
+
+  const handleGetAllGastos = async () => {
+    if (consorcioId) {
+      const gastosData = await getAllGastos(consorcioId);
+      setGastos(gastosData);
+    }
+  };
+
+  useEffect(() => {
+    const handleGetSocios = async () => {
+      if (consorcioId) {
+        const sociosData = await getAllSocios(consorcioId);
+        setSocios(sociosData);
+      }
+    };
+    handleGetSocios();
+    handleGetAllGastos();
+  }, [consorcioId]);
 
   const filteredGastos = gastos.filter((g) => {
     if (filter === 'aprobados') return g.aprobado;
@@ -92,7 +121,7 @@ export function Gastos() {
                   <SelectContent>
                     {socios.map(socio => (
                       <SelectItem key={socio.id} value={socio.id}>
-                        {socio.nombre}
+                        {socio.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -193,26 +222,26 @@ export function Gastos() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredGastos.map((gasto) => {
-                  const socio = socios.find(s => s.id === gasto.socioId);
+                  const socio = socios.find(s => s.id === gasto.partnerId);
                   return (
                     <tr key={gasto.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-gray-400" />
-                          {new Date(gasto.fecha).toLocaleDateString('es-AR')}
+                          {new Date(gasto.date).toLocaleDateString('es-AR')}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {gasto.concepto}
+                        {gasto.description}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <Badge variant="outline">{gasto.categoria}</Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {socio?.nombre}
+                        {socio?.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${gasto.monto.toLocaleString('es-AR')}
+                        ${gasto.amount.toLocaleString('es-AR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {gasto.aprobado ? (
