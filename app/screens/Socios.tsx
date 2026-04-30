@@ -32,13 +32,11 @@ export function Socios() {
 
   const initialFormData = {
     apartment: "",
-    participation: "",
     role: "MEMBER"
   };
 
   const initialFieldErrors = {
     apartment: "",
-    participation: "",
     role: ""
   };
 
@@ -67,7 +65,6 @@ export function Socios() {
       const data = await getAllSocios(consorcioId);
       setSociosList(Array.isArray(data) ? data : []);
 
-      // Obtener el rol del usuario actual
       const userId = authService.getUserId();
       const currentSocio = data.find((socio: Socio) => socio.userId === userId);
       setCurrentUserRole(currentSocio ? currentSocio.role : null);
@@ -93,17 +90,8 @@ export function Socios() {
   const validateForm = () => {
     const errors = {
       apartment: formData.apartment.trim() ? "" : "El departamento es obligatorio.",
-      participation: "",
       role: ""
     };
-
-    const participationValue = Number(formData.participation);
-
-    if (!formData.participation.trim()) {
-      errors.participation = "La participación es obligatoria.";
-    } else if (Number.isNaN(participationValue) || participationValue <= 0) {
-      errors.participation = "La participación debe ser mayor a 0.";
-    }
 
     setFieldErrors(errors);
     return Object.values(errors).every((value) => value === "");
@@ -119,7 +107,6 @@ export function Socios() {
     setEditingSocio(socio);
     setFormData({
       apartment: socio.apartment || "",
-      participation: String(socio.participation || ""),
       role: socio.role
     });
     setShowDialog(true);
@@ -136,7 +123,6 @@ export function Socios() {
     try {
       await deleteSocio(id);
 
-      // Verificar si el socio eliminado es el usuario actual
       const userId = authService.getUserId();
       const socioEliminado = sociosList.find(socio => socio.id === id);
       if (socioEliminado && socioEliminado.userId === userId) {
@@ -157,7 +143,6 @@ export function Socios() {
     const socioActualizado = {
       id: editingSocio.id,
       apartment: formData.apartment.trim(),
-      participation: Number(formData.participation),
       role: formData.role
     };
 
@@ -175,13 +160,6 @@ export function Socios() {
     }
   };
 
-  const handleSubmitSocio = async () => {
-    editingSocio ? await handleUpdateSocio() : await handleAddSocio();
-  };
-
-  const handleAddSocio = async () => {
-    // This method is no longer used since we don't add socios manually
-  };
 
   const copyToClipboard = async () => {
     if (consorcio?.codigoInvitacion) {
@@ -268,9 +246,11 @@ export function Socios() {
                   </span>
                 </div>
                 <div className="pt-3 flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditDialog(socio)}>Editar</Button>
                   {currentUserRole === 'ADMIN' && (
-                    <Button variant="outline" size="sm" className="flex-1 text-red-600 hover:bg-red-50" onClick={() => handleDeleteSocio(socio.id)}>Eliminar</Button>
+                    <>
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditDialog(socio)}>Editar</Button>
+                      <Button variant="outline" size="sm" className="flex-1 text-red-600 hover:bg-red-50" onClick={() => handleDeleteSocio(socio.id)}>Eliminar</Button>
+                    </>
                   )}
                 </div>
               </CardContent>
@@ -302,18 +282,6 @@ export function Socios() {
                 className={fieldErrors.apartment ? "border-red-500" : ""}
               />
               {fieldErrors.apartment && <p className="text-xs text-red-500">{fieldErrors.apartment}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="porcentaje">Participación (%)</Label>
-              <Input
-                id="porcentaje"
-                type="number"
-                value={formData.participation}
-                onChange={(e) => handleFieldChange("participation", e.target.value)}
-                className={fieldErrors.participation ? "border-red-500" : ""}
-              />
-              {fieldErrors.participation && <p className="text-xs text-red-500">{fieldErrors.participation}</p>}
             </div>
 
             <div className="space-y-2">

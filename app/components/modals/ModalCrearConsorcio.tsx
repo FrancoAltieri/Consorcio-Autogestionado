@@ -4,11 +4,13 @@ import { X, Loader, AlertCircle, CheckCircle, Copy } from 'lucide-react';
 interface ModalCrearConsorcioProps {
   isOpen: boolean;
   onClose: () => void;
-  onCrear: (nombre: string) => Promise<{ codigoInvitacion: string }>;
+  onCrear: (nombre: string, maxPartners: number) => Promise<{ codigoInvitacion: string }>;
 }
 
 const ModalCrearConsorcio: React.FC<ModalCrearConsorcioProps> = ({ isOpen, onClose, onCrear }) => {
   const [nombre, setNombre] = useState('');
+  // Cambiamos el '10' por un string vacío para que el usuario elija
+  const [maxPartners, setMaxPartners] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [codigoGenerado, setCodigoGenerado] = useState<string | null>(null);
@@ -16,13 +18,26 @@ const ModalCrearConsorcio: React.FC<ModalCrearConsorcioProps> = ({ isOpen, onClo
 
   const handleCrear = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!nombre.trim()) {
+      setError('El nombre del consorcio es obligatorio');
+      return;
+    }
+
+    const maxPartnersNum = parseInt(maxPartners);
+    if (isNaN(maxPartnersNum) || maxPartnersNum <= 0) {
+      setError('Debes ingresar una cantidad válida de partners');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const result = await onCrear(nombre);
+      const result = await onCrear(nombre, maxPartnersNum);
       setCodigoGenerado(result.codigoInvitacion);
       setNombre('');
+      setMaxPartners('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear consorcio');
     } finally {
@@ -40,6 +55,7 @@ const ModalCrearConsorcio: React.FC<ModalCrearConsorcioProps> = ({ isOpen, onClo
 
   const handleClose = () => {
     setNombre('');
+    setMaxPartners(''); // Limpiamos al cerrar
     setError(null);
     setCodigoGenerado(null);
     setCopied(false);
@@ -120,6 +136,22 @@ const ModalCrearConsorcio: React.FC<ModalCrearConsorcioProps> = ({ isOpen, onClo
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cantidad Máxima de Partners
+              </label>
+              <input
+                type="number"
+                value={maxPartners}
+                onChange={(e) => setMaxPartners(e.target.value)}
+                disabled={loading}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 transition-all"
+                placeholder="Cantidad de socios (ej: 25)"
+                min="1"
+                required
+              />
+            </div>
+
             <div className="flex gap-3">
               <button
                 type="button"
@@ -131,7 +163,7 @@ const ModalCrearConsorcio: React.FC<ModalCrearConsorcioProps> = ({ isOpen, onClo
               </button>
               <button
                 type="submit"
-                disabled={loading || !nombre.trim()}
+                disabled={loading || !nombre.trim() || !maxPartners.trim()}
                 className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 {loading && <Loader className="w-4 h-4 animate-spin" />}

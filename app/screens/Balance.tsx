@@ -2,23 +2,66 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useParams } from 'react-router';
-import { socios, calcularBalance } from '@/data/mockData';
-import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Download, InfoIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Download, InfoIcon, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useState, useEffect } from 'react';
+import { reportesService, type BalanceSocio } from '@/services/reportesService';
 
 export function Balance() {
-  const { consorcioId } = useParams();
-  const balanceData = calcularBalance();
+  const { consorcioId } = useParams<{ consorcioId: string }>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [balanceData, setBalanceData] = useState<BalanceSocio[]>([]);
 
-  const chartData = socios.map(socio => {
-    const balance = balanceData.find(b => b.socioId === socio.id);
-    return {
-      nombre: socio.nombre.split(' ')[0],
-      gastosRealizados: balance?.gastosRealizados || 0,
-      pagosPagados: balance?.pagosPagados || 0,
-      debeAportar: balance?.debeAportar || 0,
+  useEffect(() => {
+    const loadBalance = async () => {
+      if (!consorcioId) return;
+      try {
+        setLoading(true);
+        const reporte = await reportesService.getReporteSummary(consorcioId);
+        setBalanceData(reporte.balancePorSocio);
+        setError(null);
+      } catch (err) {
+        console.error('Error cargando balance:', err);
+        setError('Error al cargar el balance');
+      } finally {
+        setLoading(false);
+      }
     };
-  });
+
+    loadBalance();
+  }, [consorcioId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error || !balanceData) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900">Balance Mensual</h2>
+          <p className="text-gray-600 mt-1">Estado de cuentas de cada socio</p>
+        </div>
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-700">{error || 'Error al cargar los datos'}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const chartData = balanceData.map(balance => ({
+    nombre: balance.socioName.split(' ')[0],
+    gastosRealizados: (balance as any).gastosRealizados ?? 0,
+    pagosPagados: balance.pagosPagados,
+    debeAportar: balance.debeAportar,
+  }));
 
   const totalMora = balanceData.reduce((sum, b) => sum + b.mora, 0);
   const sociosEnMora = balanceData.filter(b => b.estado === 'debe').length;
@@ -28,7 +71,7 @@ export function Balance() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold text-gray-900">Balance Mensual</h2>
-        <p className="text-gray-600 mt-1">Estado de cuentas de cada socio - Marzo 2026</p>
+        <p className="text-gray-600 mt-1">Estado de cuentas de cada socio</p>
       </div>
 
       {/* Info Banner */}
@@ -36,13 +79,12 @@ export function Balance() {
         <InfoIcon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-medium text-blue-900">Consorcio: #{consorcioId}</p>
-          <p className="text-xs text-blue-700 mt-1">Visualizando datos de prueba. El balance real se calculará automáticamente desde los datos del backend.</p>
+          <p className="text-xs text-blue-700 mt-1">Datos en tiempo real desde la base de datos</p>
         </div>
       </div>
 
       <div className="flex items-center justify-between">
-        <div>
-        </div>
+        <div></div>
         <Button className="bg-blue-600 hover:bg-blue-700">
           <Download className="w-4 h-4 mr-2" />
           Descargar PDF
@@ -89,25 +131,33 @@ export function Balance() {
       </div>
 
       {/* Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Comparativa de Gastos, Pagos y Aportes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="nombre" />
-              <YAxis />
-              <Tooltip formatter={(value) => `$${Number(value).toLocaleString('es-AR')}`} />
-              <Legend />
-              <Bar dataKey="gastosRealizados" fill="#3b82f6" name="Gastos Realizados" />
-              <Bar dataKey="pagosPagados" fill="#10b981" name="Pagos Realizados" />
-              <Bar dataKey="debeAportar" fill="#f59e0b" name="Debe Aportar" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {balanceData.length === 0 ? (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="py-12 text-center">
+            <p className="text-blue-700">No hay datos disponibles para mostrar el gráfico</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Comparativa de Gastos, Pagos y Aportes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="nombre" />
+                <YAxis />
+                <Tooltip formatter={(value) => `$${Number(value).toLocaleString('es-AR')}`} />
+                <Legend />
+                <Bar dataKey="gastosRealizados" fill="#3b82f6" name="Gastos Realizados" />
+                <Bar dataKey="pagosPagados" fill="#10b981" name="Pagos Realizados" />
+                <Bar dataKey="debeAportar" fill="#f59e0b" name="Debe Aportar" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Detailed Balance */}
       <Card>
@@ -115,73 +165,53 @@ export function Balance() {
           <CardTitle>Balance Detallado por Socio</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Socio
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Gastos Realizados
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pagos Efectuados
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Debe Aportar
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Saldo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Mora
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {balanceData.map((balance) => {
-                  const socio = socios.find(s => s.id === balance.socioId);
-                  const saldo = balance.pagosPagados + balance.gastosRealizados - balance.debeAportar;
-
-                  return (
+          {balanceData.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="text-gray-500">No hay socios para mostrar</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Socio
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Gastos Realizados
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Pagos Efectuados
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Debe Aportar
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Mora
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Estado
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {balanceData.map((balance) => (
                     <tr key={balance.socioId} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm">
                         <div>
-                          <div className="font-medium text-gray-900">{socio?.nombre}</div>
-                          <div className="text-gray-500">{socio?.departamento}</div>
+                          <div className="font-medium text-gray-900">{balance.socioName}</div>
+                          <div className="text-gray-500">{balance.apartment}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${balance.gastosRealizados.toLocaleString('es-AR')}
+                        {/* FIX: Si es undefined, mostramos 0 para que no rompa el toLocaleString */}
+                        ${((balance as any).gastosRealizados ?? 0).toLocaleString('es-AR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         ${balance.pagosPagados.toLocaleString('es-AR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         ${balance.debeAportar.toLocaleString('es-AR', { maximumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex items-center gap-2">
-                          {saldo >= 0 ? (
-                            <>
-                              <TrendingUp className="w-4 h-4 text-green-600" />
-                              <span className="font-semibold text-green-600">
-                                ${Math.abs(saldo).toLocaleString('es-AR', { maximumFractionDigits: 2 })}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <TrendingDown className="w-4 h-4 text-red-600" />
-                              <span className="font-semibold text-red-600">
-                                -${Math.abs(saldo).toLocaleString('es-AR', { maximumFractionDigits: 2 })}
-                              </span>
-                            </>
-                          )}
-                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
                         {balance.mora > 0 ? `$${balance.mora.toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}
@@ -198,11 +228,11 @@ export function Balance() {
                         )}
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -214,10 +244,8 @@ export function Balance() {
             <div className="text-sm text-blue-900">
               <p className="font-medium mb-2">Cómo se calcula el balance:</p>
               <ul className="space-y-1 list-disc list-inside">
-                <li><strong>Gastos Realizados:</strong> Suma de gastos aprobados que realizó cada socio</li>
-                <li><strong>Pagos Efectuados:</strong> Suma de pagos registrados por el socio</li>
+                <li><strong>Participación:</strong> Porcentaje equitativo del socio en el consorcio</li>
                 <li><strong>Debe Aportar:</strong> Porcentaje del total de gastos según participación</li>
-                <li><strong>Saldo:</strong> (Pagos + Gastos Realizados) - Debe Aportar</li>
                 <li><strong>Mora:</strong> 5% sobre saldo negativo si debe aportar</li>
               </ul>
             </div>

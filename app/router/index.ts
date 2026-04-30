@@ -6,6 +6,7 @@ import { Gastos } from "@/screens/Gastos";
 import { Pagos } from "@/screens/Pagos";
 import { Balance } from "@/screens/Balance";
 import { Reportes } from "@/screens/Reportes";
+import { Configuracion } from "@/screens/Configuracion";
 import Landing from "@/screens/Landing";
 import Login from "@/screens/Login";
 import Register from "@/screens/Register";
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { path: "pagos", Component: Pagos },
       { path: "balance", Component: Balance },
       { path: "reportes", Component: Reportes },
+      { path: "configuracion", Component: Configuracion },
     ],
   },
 ]);

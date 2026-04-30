@@ -32,7 +32,7 @@ export function Gastos() {
   const { consorcioId } = useParams();
   const initialFormData = {
     date: new Date().toISOString().split('T')[0],
-    description: "",  
+    description: "",
     category: "",
     amount: "",
     partnerId: ""
@@ -97,7 +97,7 @@ export function Gastos() {
     if (!consorcioId || !validateForm()) return;
 
     const nuevoGasto = {
-      amount: Number(formData.amount),
+      amount: parseFloat(formData.amount),
       description: formData.description.trim(),
       date: formData.date,
       consorcioId: Number(consorcioId),
@@ -108,36 +108,43 @@ export function Gastos() {
     try {
       const response = await saveGasto(nuevoGasto);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        setSubmitError(errorData?.message || "No se pudo guardar el gasto. Verifica los datos e inténtalo nuevamente.");
+      if (response.ok) {
+        await handleGetAllGastos();
+        closeDialog();
+        setSuccessMessage("Gasto registrado correctamente.");
+        setShowSuccessMessage(true);
         return;
       }
 
-      await handleGetAllGastos();
-      closeDialog();
-      if (response.status === 200) {
-        setSuccessMessage("Gasto registrado correctamente.");
-        setShowSuccessMessage(true);
-      }
+      const errorData = await response.json().catch(() => ({}));
+      setSubmitError(errorData?.message || "No se pudo guardar el gasto. Verifica los datos e inténtalo nuevamente.");
+
     } catch (error) {
       console.error("Error al guardar el gasto:", error);
-      setSubmitError("Ocurrió un error al guardar el gasto. Inténtalo nuevamente.");
+      setSubmitError("Ocurrió un error de conexión al guardar el gasto.");
     }
   };
 
   const handleGetAllGastos = async () => {
     if (consorcioId) {
-      const gastosData = await getAllGastos(consorcioId);
-      setGastos(gastosData);
+      try {
+        const gastosData = await getAllGastos(consorcioId);
+        setGastos(gastosData);
+      } catch (error) {
+        console.error("Error al obtener gastos:", error);
+      }
     }
   };
 
   useEffect(() => {
     const handleGetSocios = async () => {
       if (consorcioId) {
-        const sociosData = await getAllSocios(consorcioId);
-        setSocios(sociosData);
+        try {
+          const sociosData = await getAllSocios(consorcioId);
+          setSocios(sociosData);
+        } catch (error) {
+          console.error("Error al obtener socios:", error);
+        }
       }
     };
     handleGetSocios();
@@ -180,9 +187,8 @@ export function Gastos() {
 
       {successMessage && (
         <Alert
-          className={`fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 border-green-200 bg-green-100 text-green-800 shadow-lg transition-all duration-500 ease-out ${
-            showSuccessMessage ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
-          }`}
+          className={`fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 border-green-200 bg-green-100 text-green-800 shadow-lg transition-all duration-500 ease-out ${showSuccessMessage ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
+            }`}
         >
           <CheckCircle className="h-4 w-4 text-green-700" />
           <AlertDescription>{successMessage}</AlertDescription>
@@ -306,7 +312,6 @@ export function Gastos() {
         </Dialog>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="pb-3">
@@ -334,7 +339,6 @@ export function Gastos() {
         </Card>
       </div>
 
-      {/* Filters */}
       <div className="flex gap-2">
         <Button
           variant={filter === 'todos' ? 'default' : 'outline'}
@@ -356,34 +360,19 @@ export function Gastos() {
         </Button>
       </div>
 
-      {/* Table */}
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Concepto
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Categoría
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Socio
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Monto
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concepto</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Socio</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -397,15 +386,11 @@ export function Gastos() {
                           {new Date(gasto.date).toLocaleDateString('es-AR')}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {gasto.description}
-                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{gasto.description}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <Badge variant="outline">{gasto.category}</Badge>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {socio?.name}
-                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{socio?.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         ${gasto.amount.toLocaleString('es-AR')}
                       </td>

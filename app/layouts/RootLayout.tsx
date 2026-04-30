@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useParams, useNavigate } from 'react-router';
-import { Home, Users, Receipt, Wallet, BarChart3, FileText, Building2 } from 'lucide-react';
+import { Home, Users, Receipt, Wallet, BarChart3, FileText, Building2, Settings } from 'lucide-react';
 import { consorcioService, ConsorcioData } from '@/services/consorcioService';
 import { authService } from '@/services/authService';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -16,7 +16,6 @@ export function RootLayout() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Helpers centralizados para consistencia visual
   const activeTextColor = theme?.primaryText || 'text-blue-600';
   const activeBorderColor = theme?.primaryText ? theme.primaryText.replace('text', 'border') : 'border-blue-600';
   const iconGradient = theme?.iconGradient || 'from-blue-600 to-blue-400';
@@ -64,6 +63,7 @@ export function RootLayout() {
     { path: `/app/${consorcioId}/pagos`, label: 'Pagos', icon: Wallet },
     { path: `/app/${consorcioId}/balance`, label: 'Balance', icon: BarChart3 },
     { path: `/app/${consorcioId}/reportes`, label: 'Reportes', icon: FileText },
+    ...(consorcio?.rol === 'ADMIN' ? [{ path: `/app/${consorcioId}/configuracion`, label: 'Configuración', icon: Settings }] : []),
   ];
 
   if (error) {

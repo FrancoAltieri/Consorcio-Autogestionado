@@ -1,45 +1,77 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { socios, gastos, pagos, calcularBalance } from '@/data/mockData';
-import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Users, Receipt, InfoIcon } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useState, useEffect, useMemo } from 'react';
+import { AlertCircle, CheckCircle, Receipt, Loader2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useParams } from 'react-router';
+import { dashboardService, DashboardSummary } from '@/services/dashboardService';
 
 export function Dashboard() {
-  const { consorcioId } = useParams();
-  const balance = calcularBalance();
-  const gastosAprobados = gastos.filter(g => g.aprobado);
-  const gastosPendientes = gastos.filter(g => !g.aprobado);
-  const totalGastos = gastosAprobados.reduce((sum, g) => sum + g.monto, 0);
-  const totalPagos = pagos.reduce((sum, p) => sum + p.monto, 0);
-  const sociosEnMora = balance.filter(b => b.estado === 'debe').length;
+  const { consorcioId } = useParams<{ consorcioId: string }>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardSummary | null>(null);
 
-  // Datos para gráficos
-  const gastosPorCategoria = gastosAprobados.reduce((acc, g) => {
-    acc[g.categoria] = (acc[g.categoria] || 0) + g.monto;
-    return acc;
-  }, {} as Record<string, number>);
+  useEffect(() => {
+    const loadDashboard = async () => {
+      if (!consorcioId) return;
+      try {
+        setLoading(true);
+        const data = await dashboardService.getDashboardSummary(consorcioId);
+        setDashboardData(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error cargando dashboard:', err);
+        setError('Error al cargar los datos del dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDashboard();
+  }, [consorcioId]);
 
-  const chartData = Object.entries(gastosPorCategoria).map(([name, value]) => ({
-    name,
-    monto: value,
-  }));
+  const gastosPorCategoria = useMemo(() => {
+    if (!dashboardData?.gastos) return [];
+    const categorias = dashboardData.gastos.reduce((acc: Record<string, number>, gasto) => {
+      const categoria = gasto.category || 'Sin categoría';
+      acc[categoria] = (acc[categoria] || 0) + gasto.amount;
+      return acc;
+    }, {});
+
+    return Object.entries(categorias).map(([name, monto]) => ({
+      name,
+      monto,
+    }));
+  }, [dashboardData]);
 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error || !dashboardData) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-red-900">{error || 'Error de conexión'}</p>
+            <p className="text-xs text-red-700 mt-1">No se pudieron cargar los datos del dashboard</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold text-gray-900">Dashboard</h2>
-        <p className="text-gray-600 mt-1">Resumen del estado del consorcio - Marzo 2026</p>
-      </div>
-
-      {/* Info Banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-        <InfoIcon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-medium text-blue-900">Consorcio: #{consorcioId}</p>
-          <p className="text-xs text-blue-700 mt-1">Actualmente visualizando datos de prueba. Los datos en tiempo real serán disponibles cuando el backend esté completamente configurado.</p>
-        </div>
+        <p className="text-gray-600 mt-1">Resumen del estado del consorcio</p>
       </div>
 
       {/* Stats Cards */}
@@ -50,8 +82,8 @@ export function Dashboard() {
             <Receipt className="w-4 h-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">${totalGastos.toLocaleString('es-AR')}</div>
-            <p className="text-xs text-gray-500 mt-1">{gastosAprobados.length} gastos aprobados</p>
+            <div className="text-2xl font-semibold">${dashboardData.totalGastos.toLocaleString('es-AR')}</div>
+            <p className="text-xs text-gray-500 mt-1">{dashboardData.gastos.length} gastos registrados</p>
           </CardContent>
         </Card>
 
@@ -61,8 +93,8 @@ export function Dashboard() {
             <CheckCircle className="w-4 h-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">${totalPagos.toLocaleString('es-AR')}</div>
-            <p className="text-xs text-gray-500 mt-1">{pagos.length} pagos registrados</p>
+            <div className="text-2xl font-semibold">${dashboardData.totalPagos.toLocaleString('es-AR')}</div>
+            <p className="text-xs text-gray-500 mt-1">Cobros efectivos</p>
           </CardContent>
         </Card>
 
@@ -72,19 +104,21 @@ export function Dashboard() {
             <AlertCircle className="w-4 h-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">{sociosEnMora}</div>
-            <p className="text-xs text-gray-500 mt-1">de {socios.length} socios totales</p>
+            <div className="text-2xl font-semibold">{dashboardData.sociosEnMora}</div>
+            <p className="text-xs text-gray-500 mt-1">con pagos pendientes</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Gastos Pendientes</CardTitle>
-            <AlertCircle className="w-4 h-4 text-orange-500" />
+            <CardTitle className="text-sm font-medium text-gray-600">Balance Total</CardTitle>
+            <AlertCircle className={`w-4 h-4 ${dashboardData.totalPagos >= dashboardData.totalGastos ? 'text-green-500' : 'text-orange-500'}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">{gastosPendientes.length}</div>
-            <p className="text-xs text-gray-500 mt-1">Esperando aprobación</p>
+            <div className={`text-2xl font-semibold ${dashboardData.totalPagos >= dashboardData.totalGastos ? 'text-green-600' : 'text-red-600'}`}>
+              ${(dashboardData.totalPagos - dashboardData.totalGastos).toLocaleString('es-AR')}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">{dashboardData.totalPagos >= dashboardData.totalGastos ? 'Superávit' : 'Déficit'}</p>
           </CardContent>
         </Card>
       </div>
@@ -97,7 +131,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
+              <BarChart data={gastosPorCategoria}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
@@ -116,7 +150,7 @@ export function Dashboard() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={chartData}
+                  data={gastosPorCategoria}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -125,7 +159,7 @@ export function Dashboard() {
                   fill="#8884d8"
                   dataKey="monto"
                 >
-                  {chartData.map((entry, index) => (
+                  {gastosPorCategoria.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -143,30 +177,24 @@ export function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {gastos.slice(0, 5).map((gasto) => {
-              const socio = socios.find(s => s.id === gasto.socioId);
-              return (
-                <div key={gasto.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${gasto.aprobado ? 'bg-green-100' : 'bg-orange-100'}`}>
-                      <Receipt className={`w-4 h-4 ${gasto.aprobado ? 'text-green-600' : 'text-orange-600'}`} />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{gasto.concepto}</p>
-                      <p className="text-sm text-gray-500">
-                        {socio?.nombre} • {new Date(gasto.fecha).toLocaleDateString('es-AR')}
-                      </p>
-                    </div>
+            {dashboardData.gastos.slice(0, 5).map((gasto) => (
+              <div key={gasto.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-blue-100">
+                    <Receipt className="w-4 h-4 text-blue-600" />
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">${gasto.monto.toLocaleString('es-AR')}</p>
-                    <p className={`text-xs ${gasto.aprobado ? 'text-green-600' : 'text-orange-600'}`}>
-                      {gasto.aprobado ? 'Aprobado' : 'Pendiente'}
+                  <div>
+                    <p className="font-medium text-gray-900">{gasto.description}</p>
+                    <p className="text-sm text-gray-500">
+                      {gasto.category} • {new Date(gasto.date).toLocaleDateString('es-AR')}
                     </p>
                   </div>
                 </div>
-              );
-            })}
+                <div className="text-right">
+                  <p className="font-semibold text-gray-900">${gasto.amount.toLocaleString('es-AR')}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

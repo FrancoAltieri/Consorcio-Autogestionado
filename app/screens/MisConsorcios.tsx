@@ -40,16 +40,28 @@ const MisConsorcios: React.FC = () => {
     }
   };
 
-  const handleCrearConsorcio = async (nombre: string) => {
-    const result = await consorcioService.crearConsorcio({ nombre });
-    setConsorcios(prev => [...prev, result]);
-    return result;
+  const handleCrearConsorcio = async (nombre: string, maxPartners: number) => {
+    try {
+      const result = await consorcioService.crearConsorcio({ nombre, maxPartners });
+      setConsorcios(prev => [...prev, result]);
+      return result;
+    } catch (err) {
+      throw err;
+    }
   };
 
   const handleUnirseConsorcio = async (codigo: string) => {
-    const result = await consorcioService.unirseConsorcio({ codigoInvitacion: codigo });
-    setConsorcios([...consorcios, result]);
-    setShowJoinModal(false);
+    try {
+      const result = await consorcioService.unirseConsorcio({ codigoInvitacion: codigo });
+      setConsorcios(prev => {
+        const existe = prev.find(c => c.id === result.id);
+        if (existe) return prev.map(c => c.id === result.id ? result : c);
+        return [...prev, result];
+      });
+      setShowJoinModal(false);
+    } catch (err) {
+      throw err;
+    }
   };
 
   const handleLogout = () => {
@@ -183,9 +195,9 @@ const MisConsorcios: React.FC = () => {
 
                   <div className="flex items-center gap-6 mb-4">
                     <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-white/40" />
-                      <span className="text-white/60 text-sm">
-                        {consorcio.cantidadMiembros}
+                      <Users className={`w-4 h-4 ${consorcio.cantidadMiembros >= consorcio.maxPartners ? 'text-orange-400' : 'text-white/40'}`} />
+                      <span className={`text-sm ${consorcio.cantidadMiembros >= consorcio.maxPartners ? 'text-orange-300 font-bold' : 'text-white/60'}`}>
+                        {consorcio.cantidadMiembros} / {consorcio.maxPartners}
                       </span>
                     </div>
                     <div className="bg-white/5 px-2 py-1 rounded border border-white/5">
