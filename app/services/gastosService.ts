@@ -7,22 +7,31 @@ const getAuthHeaders = () => ({
     "Authorization": `Bearer ${authService.getToken()}`
 });
 
-export async function getAllGastos (consorcioId: string | number) {
-    const url = `${baseUrl}/all?consorcioId=${consorcioId}`;
+export interface Gasto {
+    id?: number;
+    amount: number;
+    description: string;
+    date: string;
+    consorcioId: number;
+    partnerId: number;
+    category: string;
+    approved?: boolean;
+}
 
+export async function getAllGastos(consorcioId: string | number) {
+    const url = `${baseUrl}/all?consorcioId=${consorcioId}`;
     const response = await fetch(url, {
         method: "GET",
         headers: getAuthHeaders()
     });
 
-    if (!response.ok) throw new Error("Error al obtener los gastos de este consorcio");
+    if (!response.ok) throw new Error("Error al obtener los gastos");
 
     const data = await response.json();
     return Array.isArray(data.response) ? data.response : [];
 }
 
 export async function saveGasto(gasto: any) {
-    console.log("Guardando gasto:", gasto);
     const url = `${baseUrl}/save`;
     return fetch(url, {
         method: "POST",
@@ -30,3 +39,8 @@ export async function saveGasto(gasto: any) {
         body: JSON.stringify(gasto)
     });
 }
+
+export const gastosService = {
+    getAllGastos,
+    saveGasto,
+};

@@ -10,10 +10,12 @@ export interface ConsorcioData {
     fechaCreacion: string;
     rol: 'ADMIN' | 'USER';
     cantidadMiembros: number;
+    maxPartners: number;
 }
 
 export interface CreateConsorcioRequest {
     nombre: string;
+    maxPartners: number;
 }
 
 export interface UnirseConsorcioRequest {
@@ -89,5 +91,21 @@ export const consorcioService = {
         }
 
         return await response.json();
+    },
+
+    async actualizarNombreConsorcio(consorcioId: number | string, nombre: string): Promise<ConsorcioData> {
+        const response = await fetch(`${API_BASE_URL}/consorcios/${consorcioId}/nombre`, {
+            method: "PUT",
+            headers: getAuthHeader(),
+            body: JSON.stringify({ nombre }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.message || "Error al actualizar el nombre del consorcio");
+        }
+
+        const data = await response.json();
+        return data.consorcio || data;
     },
 };
