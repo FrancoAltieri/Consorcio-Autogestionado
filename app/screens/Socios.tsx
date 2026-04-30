@@ -190,26 +190,24 @@ export function Socios() {
           </div>
         </div>
       </div>
-
-      {/* Código de Invitación*/}
       {consorcio && (
-        <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-gray-50 to-white border border-gray-100 shadow-xl shadow-gray-100/50 hover:shadow-2xl transition-all duration-500 hover:border-gray-200/50 p-8">
+        <div className="group relative overflow-hidden rounded-3xl bg-white border-2 border-gray-200 shadow-xl p-8 transition-all duration-500">
           <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${theme.iconGradient}`}></div>
 
           <div className="flex items-center justify-between gap-6">
             <div className="flex-1">
-              <h3 className={`text-2xl font-bold bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent mb-2`}>
+              <h3 className="text-2xl font-bold text-black mb-2">
                 Código de Invitación
               </h3>
-              <p className="text-gray-600">Comparte este código para que nuevos miembros se unan al consorcio</p>
+              <p className="text-gray-700 font-medium">Comparte este código para que nuevos miembros se unan al consorcio</p>
             </div>
             <div className="flex items-center gap-4">
-              <code className="bg-gradient-to-br from-gray-50 to-white px-6 py-3 rounded-2xl border border-gray-200 font-mono text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md">
+              <code className="bg-gray-100 px-6 py-3 rounded-2xl border border-gray-300 font-mono text-2xl font-black text-black shadow-sm">
                 {consorcio.codigoInvitacion}
               </code>
               <Button
                 onClick={copyToClipboard}
-                className={`px-5 py-3 rounded-2xl bg-gradient-to-r ${theme.iconGradient} text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2`}
+                className={`px-5 py-3 rounded-2xl bg-gradient-to-r ${theme.iconGradient} text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2`}
               >
                 {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                 {copied ? 'Copiado' : 'Copiar'}
