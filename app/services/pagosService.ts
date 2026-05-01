@@ -18,6 +18,7 @@ export enum PaymentMethod {
 export interface Pago {
     id?: number;
     partnerId: number;
+    expenseId: number;
     paymentDate: string;
     period: string;
     amount: number;

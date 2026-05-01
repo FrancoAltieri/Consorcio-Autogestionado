@@ -22,12 +22,14 @@ import {
 
 import { pagoService } from '../services/pagosService';
 import { getAllSocios } from '../services/sociosService';
+import { getApprovedGastos } from '../services/gastosService';
 import { authService } from '../services/authService';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface Pago {
   id?: number;
   partnerId: number;
+  expenseId: number;
   paymentDate: string;
   period: string;
   amount: number;
@@ -37,8 +39,16 @@ interface Pago {
 
 interface Socio {
   id: number;
+  userId: number;
   name: string;
   apartment: string;
+  participation: number;
+}
+
+interface Gasto {
+  id: number;
+  description: string;
+  amount: number;
 }
 
 export function Pagos() {
@@ -57,6 +67,7 @@ export function Pagos() {
   ];
 
   const initialFormData = {
+    expenseId: "",
     paymentDate: new Date().toISOString().split('T')[0],
     selectedMonth: (new Date().getMonth() + 1).toString().padStart(2, '0'),
     selectedYear: currentYear.toString(),
@@ -68,6 +79,7 @@ export function Pagos() {
   const [showDialog, setShowDialog] = useState(false);
   const [pagosList, setPagosList] = useState<Pago[]>([]);
   const [sociosList, setSociosList] = useState<Socio[]>([]);
+  const [gastosList, setGastosList] = useState<Gasto[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitError, setSubmitError] = useState('');
   const [formData, setFormData] = useState(initialFormData);
@@ -96,9 +108,18 @@ export function Pagos() {
     } catch (error) { }
   };
 
+  const fetchGastos = async () => {
+    if (!consorcioId) return;
+    try {
+      const data = await getApprovedGastos(consorcioId);
+      setGastosList(Array.isArray(data) ? data : []);
+    } catch (error) { }
+  };
+
   useEffect(() => {
     fetchPagos();
     fetchSocios();
+    fetchGastos();
   }, [consorcioId]);
 
   const handleFieldChange = (field: string, value: string) => {
@@ -107,21 +128,29 @@ export function Pagos() {
   };
 
   const handleAddPago = async () => {
-    if (!formData.amount || !formData.paymentMethod || !userId) {
+    if (!formData.amount || !formData.paymentMethod || !userId || !formData.expenseId) {
       setSubmitError("Por favor, completa los campos obligatorios.");
+      return;
+    }
+
+    const currentSocio = sociosList.find(s => s.userId === userId);
+    if (!currentSocio) {
+      setSubmitError("Socio no encontrado.");
       return;
     }
 
     const formattedPeriod = `${formData.selectedYear}-${formData.selectedMonth}-01`;
 
     const nuevoPago: Pago = {
-      partnerId: userId,
+      partnerId: currentSocio.id,
+      expenseId: Number(formData.expenseId),
       paymentDate: formData.paymentDate,
       period: formattedPeriod,
       amount: Number(formData.amount),
       paymentMethod: formData.paymentMethod,
       description: formData.description || ""
     };
+    console.log("📤 Enviando al backend:", JSON.stringify(nuevoPago, null, 2));
 
     try {
       const response = await pagoService.savePago(nuevoPago);
@@ -269,6 +298,33 @@ export function Pagos() {
                       <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Socio Pagador</p>
                       <p className="text-sm font-semibold text-blue-900">{userInfo.nombre}</p>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-base font-bold text-gray-900">Gasto</Label>
+                    <Select value={formData.expenseId} onValueChange={(val) => handleFieldChange('expenseId', val)}>
+                      <SelectTrigger className="rounded-xl text-base py-2.5 border-gray-200 focus:border-blue-500 transition-colors">
+                        <SelectValue placeholder="Seleccionar..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {gastosList.length === 0 ? (
+                          <SelectItem value="none" disabled>No hay gastos aprobados</SelectItem>
+                        ) : (
+                          gastosList.map((gasto) => {
+                            // Calculo la participación del socio actual
+                            const currentSocio = sociosList.find(s => s.userId === userId);
+                            const userParticipation = currentSocio?.participation || 0;
+                            const montoPersonalizado = (gasto.amount * userParticipation) / 100;
+
+                            return (
+                              <SelectItem key={gasto.id} value={String(gasto.id)}>
+                                {gasto.description} - ${montoPersonalizado.toLocaleString('es-AR')}
+                              </SelectItem>
+                            );
+                          })
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
