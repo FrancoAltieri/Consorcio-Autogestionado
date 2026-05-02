@@ -5,27 +5,28 @@ import { useParams } from 'react-router';
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Download, InfoIcon, Loader2, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { useState, useEffect } from 'react';
-import { reportesService, type BalanceSocio } from '@/services/reportesService';
+import { BalanceDeConsorcio, getBalance } from '@/services/balanceService';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getSocioById } from '@/services/sociosService';
 
 export function Balance() {
   const { consorcioId } = useParams<{ consorcioId: string }>();
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [balanceData, setBalanceData] = useState<BalanceSocio[]>([]);
+  const [balanceData, setBalanceData] = useState<BalanceDeConsorcio | null>(null);
 
   useEffect(() => {
     const loadBalance = async () => {
       if (!consorcioId) return;
       try {
         setLoading(true);
-        const reporte = await reportesService.getReporteSummary(consorcioId);
-        setBalanceData(reporte.balancePorSocio);
+        const balance = await getBalance(consorcioId);
+        setBalanceData(balance);
         setError(null);
       } catch (err) {
         console.error('Error cargando balance:', err);
-        setError('Error al cargar el balance');
+        setError('Error al obtener el balance del consorcio');
       } finally {
         setLoading(false);
       }
@@ -72,22 +73,16 @@ export function Balance() {
     );
   }
 
-  const chartData = balanceData.map(balance => ({
-    nombre: balance.socioName.split(' ')[0],
-    gastosRealizados: (balance as any).gastosRealizados ?? 0,
-    pagosPagados: balance.pagosPagados,
-    debeAportar: balance.debeAportar,
-  }));
+  const chartData = balanceData.perPartnerBalance;
 
-  const totalMora = balanceData.reduce((sum, b) => sum + b.mora, 0);
-  const sociosEnMora = balanceData.filter(b => b.estado === 'debe').length;
-  const sociosAFavor = balanceData.filter(b => b.estado === 'a favor').length;
-  const sociosAlDia = balanceData.filter(b => b.estado === 'al dia').length;
+  const totalMora = balanceData.totalMora;
+  const sociosEnMora = chartData.filter(socio => socio.penaltyForLatePayment > 0).length;
+  const sociosAFavor = chartData.length - sociosEnMora;
 
   // CustomTooltip para el gráfico
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      //const data = payload[0].payload;
       return (
         <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-100/50 min-w-[180px]">
           <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">{payload[0].name}</p>
@@ -190,7 +185,7 @@ export function Balance() {
       </div>
 
       {/* Gráfico de Comparativa*/}
-      {balanceData.length === 0 ? (
+      {balanceData.totalExpenses == 0 ? (
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-xl shadow-blue-100/50">
           <div className={`p-4 rounded-2xl bg-gradient-to-br ${theme.iconGradient} shadow-lg mb-4`}>
             <BarChart3 className="w-8 h-8 text-white" />
@@ -205,7 +200,7 @@ export function Balance() {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className={`text-2xl font-bold bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent`}>
-                  Comparativa de Balance
+                  Comparativa de Mora
                 </h3>
                 <p className="text-base text-gray-500 mt-1">Gastos, Pagos y Aportes por Socio</p>
               </div>
@@ -215,27 +210,27 @@ export function Balance() {
               <ResponsiveContainer width="100%" height={400}>
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
                   <defs>
-                    <linearGradient id="gradGastos" x1="0" y1="0" x2="0" y2="1">
+                    {/* <linearGradient id="gradGastos" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
                       <stop offset="100%" stopColor="#1e40af" stopOpacity={0.8} />
-                    </linearGradient>
-                    <linearGradient id="gradPagos" x1="0" y1="0" x2="0" y2="1">
+                    </linearGradient> */}
+                    {/* <linearGradient id="gradPagos" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#10b981" stopOpacity={1} />
                       <stop offset="100%" stopColor="#047857" stopOpacity={0.8} />
-                    </linearGradient>
-                    <linearGradient id="gradAportes" x1="0" y1="0" x2="0" y2="1">
+                    </linearGradient> */}
+                    <linearGradient id="gradMora" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#f59e0b" stopOpacity={1} />
                       <stop offset="100%" stopColor="#d97706" stopOpacity={0.8} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                  <XAxis dataKey="nombre" tick={{ fill: '#6b7280', fontSize: 13, fontWeight: 500 }} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 13, fontWeight: 500 }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} tickLine={false} axisLine={false} tickFormatter={(value) => `$${Number(value) / 1000}k`} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(229, 231, 235, 0.3)', radius: 10 }} />
                   <Legend />
-                  <Bar dataKey="gastosRealizados" fill="url(#gradGastos)" name="Gastos Realizados" radius={[12, 12, 0, 0]} animationDuration={1500} />
-                  <Bar dataKey="pagosPagados" fill="url(#gradPagos)" name="Pagos Realizados" radius={[12, 12, 0, 0]} animationDuration={1500} />
-                  <Bar dataKey="debeAportar" fill="url(#gradAportes)" name="Debe Aportar" radius={[12, 12, 0, 0]} animationDuration={1500} />
+                  {/* <Bar dataKey="gastosRealizados" fill="url(#gradGastos)" name="Gastos Realizados" radius={[12, 12, 0, 0]} animationDuration={1500} /> */}
+                  {/* <Bar dataKey="payments" fill="url(#gradPagos)" name="Pagos Realizados" radius={[12, 12, 0, 0]} animationDuration={1500} /> */}
+                  <Bar dataKey="penaltyForLatePayment" fill="url(#gradMora)" name="Mora" radius={[12, 12, 0, 0]} animationDuration={1500} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -256,7 +251,7 @@ export function Balance() {
             </div>
           </div>
 
-          {balanceData.length === 0 ? (
+          {balanceData.totalExpenses == 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 font-medium">No hay socios para mostrar</p>
             </div>
@@ -274,32 +269,32 @@ export function Balance() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {balanceData.map((balance) => (
-                    <tr key={balance.socioId} className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-colors">
+                  {balanceData.perPartnerBalance.map((balance) => (
+                    <tr key={balance.partnerId} className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-colors">
                       <td className="px-6 py-4">
-                        <div className="font-semibold text-gray-900">{balance.socioName}</div>
-                        <div className="text-xs text-gray-500 font-medium">{balance.apartment}</div>
+                        <div className="font-semibold text-gray-900">{balance.name}</div>
+                        {/* <div className="text-xs text-gray-500 font-medium">{balance.apartment}</div> */}
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-bold text-gray-900">${((balance as any).gastosRealizados ?? 0).toLocaleString('es-AR')}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-bold text-green-600">${balance.pagosPagados.toLocaleString('es-AR')}</p>
+                        <p className="font-bold text-green-600">${balance.payments.toLocaleString('es-AR')}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-bold text-blue-600">${balance.debeAportar.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</p>
+                        <p className="font-bold text-blue-600">${balance.debt.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-bold text-orange-600">{balance.mora > 0 ? `$${balance.mora.toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
+                        <p className="font-bold text-orange-600">{balance.penaltyForLatePayment > 0 ? `$${balance.penaltyForLatePayment.toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
                       </td>
                       <td className="px-6 py-4">
-                        {balance.estado === 'debe' && (
+                        {balance.penaltyForLatePayment > 0 && (
                           <Badge className="bg-gradient-to-r from-red-100 to-orange-100 text-red-800 border-0 font-semibold">Debe</Badge>
                         )}
-                        {balance.estado === 'a favor' && (
+                        {balance.payments > balance.debt && (
                           <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0 font-semibold">A Favor</Badge>
                         )}
-                        {balance.estado === 'al dia' && (
+                        {balance.payments == balance.debt && (
                           <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-0 font-semibold">Al Día</Badge>
                         )}
                       </td>

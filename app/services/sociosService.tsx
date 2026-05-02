@@ -25,6 +25,17 @@ export async function getAllSocios(consorcioId: string | number) {
     return Array.isArray(data.response) ? data.response : [];
 }
 
+export async function getSocioById(socioId: string | number) {
+    const url = `${baseUrl}/${socioId}`;
+    const response = await fetch(url, {
+        method: "GET",
+        headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) throw new Error("Error al obtener el socio");
+    return response.json();
+}
+
 export async function saveSocio(socio: any) {
     const url = `${baseUrl}/save`;
     return fetch(url, {
