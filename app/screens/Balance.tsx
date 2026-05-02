@@ -1,13 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useParams } from 'react-router';
-import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Download, InfoIcon, Loader2, BarChart3 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
+import { TrendingDown, AlertCircle, CheckCircle, InfoIcon, Loader2, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useState, useEffect } from 'react';
 import { BalanceDeConsorcio, getBalance } from '@/services/balanceService';
 import { useTheme } from '@/contexts/ThemeContext';
-import { getSocioById } from '@/services/sociosService';
 
 export function Balance() {
   const { consorcioId } = useParams<{ consorcioId: string }>();

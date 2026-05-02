@@ -1,27 +1,25 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useParams } from 'react-router';
 import { useState, useEffect } from 'react';
 import { Download, FileText, DollarSign, TrendingUp, AlertTriangle, InfoIcon, Loader2, BarChart3 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { reportesService, type ReporteSummary } from '@/services/reportesService';
 import { useTheme } from '@/contexts/ThemeContext';
+import { BalanceDeConsorcio, getBalance } from '@/services/balanceService';
 
 export function Reportes() {
   const { consorcioId } = useParams<{ consorcioId: string }>();
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [reporte, setReporte] = useState<ReporteSummary | null>(null);
+  const [reporte, setReporte] = useState<BalanceDeConsorcio | null>(null);
 
   useEffect(() => {
     const loadReporte = async () => {
       if (!consorcioId) return;
       try {
         setLoading(true);
-        const data = await reportesService.getReporteSummary(consorcioId);
+        const data = await getBalance(consorcioId);
         setReporte(data);
         setError(null);
       } catch (err) {
@@ -75,10 +73,10 @@ export function Reportes() {
 
   // Datos simulados para evolución
   const evolucionMensual = [
-    { mes: 'Sem 1', gastos: reporte.totalGastos * 0.25, pagos: reporte.totalPagos * 0.2 },
-    { mes: 'Sem 2', gastos: reporte.totalGastos * 0.5, pagos: reporte.totalPagos * 0.4 },
-    { mes: 'Sem 3', gastos: reporte.totalGastos * 0.75, pagos: reporte.totalPagos * 0.6 },
-    { mes: 'Sem 4', gastos: reporte.totalGastos, pagos: reporte.totalPagos },
+    { mes: 'Sem 1', gastos: reporte.totalExpenses * 0.25, pagos: reporte.totalPayments * 0.2 },
+    { mes: 'Sem 2', gastos: reporte.totalExpenses * 0.5, pagos: reporte.totalPayments * 0.4 },
+    { mes: 'Sem 3', gastos: reporte.totalExpenses * 0.75, pagos: reporte.totalPayments * 0.6 },
+    { mes: 'Sem 4', gastos: reporte.totalExpenses, pagos: reporte.totalPayments },
   ];
 
   const reportes = [
@@ -147,7 +145,7 @@ export function Reportes() {
             </div>
             <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Total Gastos</h3>
             <p className={`text-4xl font-extrabold tracking-tight bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent`}>
-              ${reporte.totalGastos.toLocaleString('es-AR')}
+              ${reporte.totalExpenses.toLocaleString('es-AR')}
             </p>
           </div>
         </div>
@@ -166,7 +164,7 @@ export function Reportes() {
             </div>
             <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Total Pagos</h3>
             <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              ${reporte.totalPagos.toLocaleString('es-AR')}
+              ${reporte.totalPayments.toLocaleString('es-AR')}
             </p>
           </div>
         </div>
@@ -318,24 +316,24 @@ export function Reportes() {
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
                   <span className="font-semibold text-gray-900">Al día</span>
                   <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-0 font-bold text-base px-4 py-1">
-                    {reporte.balancePorSocio.filter(b => b.estado === 'al dia').length}
+                    {reporte.perPartnerBalance.filter(balanceSocio => balanceSocio.payments == balanceSocio.debt).length}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100">
                   <span className="font-semibold text-gray-900">A favor</span>
                   <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0 font-bold text-base px-4 py-1">
-                    {reporte.balancePorSocio.filter(b => b.estado === 'a favor').length}
+                    {reporte.perPartnerBalance.filter(balanceSocio => balanceSocio.payments > balanceSocio.debt).length}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-br from-red-50 to-orange-50 border border-red-100">
                   <span className="font-semibold text-gray-900">Debe</span>
                   <Badge className="bg-gradient-to-r from-red-100 to-orange-100 text-red-800 border-0 font-bold text-base px-4 py-1">
-                    {reporte.balancePorSocio.filter(b => b.estado === 'debe').length}
+                    {reporte.perPartnerBalance.filter(balanceSocio => balanceSocio.penaltyForLatePayment > 0).length}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200">
                   <span className="font-semibold text-gray-900">Total socios</span>
-                  <span className="font-bold text-lg text-gray-950">{reporte.balancePorSocio.length}</span>
+                  <span className="font-bold text-lg text-gray-950">{reporte.perPartnerBalance.length}</span>
                 </div>
               </div>
             </div>
@@ -347,15 +345,15 @@ export function Reportes() {
                 <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100">
                   <span className="font-semibold text-gray-900">Participación Promedio</span>
                   <span className="font-bold text-lg bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                    {reporte.balancePorSocio.length > 0
-                      ? (reporte.balancePorSocio.reduce((sum, b) => sum + b.participation, 0) / reporte.balancePorSocio.length).toFixed(2)
+                    {reporte.perPartnerBalance.length > 0
+                      ? (/* reporte.perPartnerBalance.reduce((sum, b) => sum + b.participation, 0) */100 / reporte.perPartnerBalance.length).toFixed(2)
                       : '0'}%
                   </span>
                 </div>
-                <div className={`flex items-center justify-between p-4 rounded-2xl ${reporte.totalPagos >= reporte.totalGastos ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100' : 'bg-gradient-to-br from-red-50 to-orange-50 border border-red-100'}`}>
+                <div className={`flex items-center justify-between p-4 rounded-2xl ${reporte.totalPayments >= reporte.totalExpenses ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100' : 'bg-gradient-to-br from-red-50 to-orange-50 border border-red-100'}`}>
                   <span className="font-semibold text-gray-900">Cobertura de Gastos</span>
-                  <span className={`font-bold text-lg ${reporte.totalPagos >= reporte.totalGastos ? 'text-green-600' : 'text-red-600'}`}>
-                    {reporte.totalGastos > 0 ? ((reporte.totalPagos / reporte.totalGastos) * 100).toFixed(1) : '0'}%
+                  <span className={`font-bold text-lg ${reporte.totalPayments >= reporte.totalExpenses ? 'text-green-600' : 'text-red-600'}`}>
+                    {reporte.totalExpenses > 0 ? ((reporte.totalPayments / reporte.totalExpenses) * 100).toFixed(1) : '0'}%
                   </span>
                 </div>
               </div>
