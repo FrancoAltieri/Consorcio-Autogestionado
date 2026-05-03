@@ -42,6 +42,20 @@ export const pagoService = {
         return Array.isArray(data.response) ? data.response : [];
     },
 
+    async getPagosByPeriod(consorcioId: string | number, period: string): Promise<Pago[]> {
+        const url = `${baseUrl}/period?consorcioId=${consorcioId}&period=${period}`;
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: getAuthHeaders()
+        });
+
+        if (!response.ok) throw new Error("Error al obtener los pagos por período");
+
+        const data = await response.json();
+        return Array.isArray(data.response) ? data.response : [];
+    },
+
     async savePago(pago: Partial<Pago>) {
         const url = `${baseUrl}/save`;
         return fetch(url, {
