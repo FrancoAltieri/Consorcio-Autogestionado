@@ -77,22 +77,41 @@ export function Pagos() {
   };
 
   const [showDialog, setShowDialog] = useState(false);
-  const [pagosList, setPagosList] = useState<Pago[]>([]);
+  const [allPagosList, setAllPagosList] = useState<Pago[]>([]);
+  const [filteredPagosList, setFilteredPagosList] = useState<Pago[]>([]);
   const [sociosList, setSociosList] = useState<Socio[]>([]);
   const [gastosList, setGastosList] = useState<Gasto[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitError, setSubmitError] = useState('');
   const [formData, setFormData] = useState(initialFormData);
+  const [selectedFilterMonth, setSelectedFilterMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
+  const [selectedFilterYear, setSelectedFilterYear] = useState(currentYear.toString());
 
-  const totalPagos = pagosList.reduce((sum, p) => sum + p.amount, 0);
-  const sociosQuePagaron = new Set(pagosList.map(p => p.partnerId)).size;
+  const totalPagos = filteredPagosList.reduce((sum, p) => sum + p.amount, 0);
+  const sociosQuePagaron = new Set(filteredPagosList.map(p => p.partnerId)).size;
 
-  const fetchPagos = async () => {
+  const fetchAllPagos = async () => {
     if (!consorcioId) return;
     setLoading(true);
+
     try {
       const data = await pagoService.getAllPagos(consorcioId);
-      setPagosList(Array.isArray(data) ? data : []);
+      setAllPagosList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchFilteredPagos = async (month: string, year: string) => {
+    if (!consorcioId) return;
+    setLoading(true);
+
+    try {
+      const periodFilter = `${year}-${month}-01`;
+      const data = await pagoService.getPagosByPeriod(consorcioId, periodFilter);
+      setFilteredPagosList(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -117,7 +136,8 @@ export function Pagos() {
   };
 
   useEffect(() => {
-    fetchPagos();
+    fetchAllPagos();
+    fetchFilteredPagos(selectedFilterMonth, selectedFilterYear);
     fetchSocios();
     fetchGastos();
   }, [consorcioId]);
@@ -126,6 +146,12 @@ export function Pagos() {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setSubmitError("");
   };
+
+  const handleFilterChange = (month: string, year: string) => {
+    setSelectedFilterMonth(month);
+    setSelectedFilterYear(year);
+    fetchFilteredPagos(month, year);
+  }
 
   const handleAddPago = async () => {
     if (!formData.amount || !formData.paymentMethod || !userId || !formData.expenseId) {
@@ -136,6 +162,13 @@ export function Pagos() {
     const currentSocio = sociosList.find(s => s.userId === userId);
     if (!currentSocio) {
       setSubmitError("Socio no encontrado.");
+      return;
+    }
+
+    const montoPendiente = getMontoPendientePorGasto(Number(formData.expenseId), currentSocio.id);
+    const montoAPagar = Number(formData.amount);
+    if (montoAPagar > montoPendiente) {
+      setSubmitError(`No se puede pagar más de lo que se debe.`);
       return;
     }
 
@@ -150,12 +183,12 @@ export function Pagos() {
       paymentMethod: formData.paymentMethod,
       description: formData.description || ""
     };
-    console.log("📤 Enviando al backend:", JSON.stringify(nuevoPago, null, 2));
 
     try {
       const response = await pagoService.savePago(nuevoPago);
       if (response.ok) {
-        await fetchPagos();
+        await fetchAllPagos();
+        await fetchFilteredPagos(selectedFilterMonth, selectedFilterYear);
         setShowDialog(false);
         setFormData(initialFormData);
       } else {
@@ -173,6 +206,20 @@ export function Pagos() {
     const date = new Date(Number(parts[0]), Number(parts[1]) - 1);
     const month = date.toLocaleDateString('es-ES', { month: 'long' });
     return month.charAt(0).toUpperCase() + month.slice(1) + ' ' + parts[0];
+  };
+
+  const getMontoPendientePorGasto = (gastoId: number, socioId: number): number => {
+    const gasto = gastosList.find(g => g.id === gastoId);
+    const currentSocio = sociosList.find(s => s.id === socioId);
+    if (!gasto || !currentSocio) return 0;
+
+    const montoPagado = allPagosList
+      .filter(p => p.expenseId === gastoId && p.partnerId === socioId)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const userParticipation = currentSocio.participation;
+    const montoTotal = (gasto.amount * userParticipation) / 100;
+
+    return Math.max(0, montoTotal - montoPagado);
   };
 
   return (
@@ -235,12 +282,12 @@ export function Pagos() {
                     <TrendingUp className="w-6 h-6 text-white" />
                   </div>
                   <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${theme.badgeBg} border ${theme.badgeBorder}`}>
-                    <span className={`text-xs font-bold ${theme.badgeText}`}>Movimientos</span>
+                    <span className={`text-xs font-bold text-purple-700 ${theme.badgeText}`}>Movimientos</span>
                   </div>
                 </div>
                 <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Transacciones</h3>
                 <p className={`text-4xl font-extrabold tracking-tight bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent`}>
-                  {pagosList.length}
+                  {filteredPagosList.length}
                 </p>
               </div>
             </div>
@@ -265,8 +312,50 @@ export function Pagos() {
             </div>
           </div>
 
-          {/* Botón Registrar Pago */}
-          <div className="flex justify-end">
+
+          <div className="flex justify-between">
+            {/* Filtros de mes y año */}
+            <div className="flex gap-2 items-center bg-white rounded-2xl border-gray-200 p-1 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Select value={selectedFilterMonth} onValueChange={(val) => handleFilterChange(val, selectedFilterYear)}>
+                <SelectTrigger className="w-32 rounded-xl">
+                  <SelectValue placeholder="Mes" />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map(m => (
+                    <SelectItem key={m.val} value={m.val}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedFilterYear.toString()} onValueChange={(val) => handleFilterChange(selectedFilterMonth, val)}>
+                <SelectTrigger className="w-24 rounded-xl">
+                  <SelectValue placeholder="Año" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={(currentYear - 1).toString()}>{currentYear - 1}</SelectItem>
+                  <SelectItem value={currentYear.toString()}>{currentYear}</SelectItem>
+                  <SelectItem value={(currentYear + 1).toString()}>{currentYear + 1}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+                  const currentYear = (new Date().getFullYear()).toString();
+                  setSelectedFilterMonth(currentMonth);
+                  setSelectedFilterYear(currentYear);
+                  fetchFilteredPagos(currentMonth, currentYear);
+                }}
+                className="rounded-xl"
+              >
+                Actual
+              </Button>
+            </div>
+
+            {/* Botón Registrar Pago */}
+            {/* <div className="flex justify-end"> */}
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
               <DialogTrigger asChild>
                 <Button className={`px-8 py-3 rounded-2xl bg-gradient-to-r ${theme.iconGradient} text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2`}>
@@ -310,18 +399,30 @@ export function Pagos() {
                         {gastosList.length === 0 ? (
                           <SelectItem value="none" disabled>No hay gastos aprobados</SelectItem>
                         ) : (
-                          gastosList.map((gasto) => {
-                            // Calculo la participación del socio actual
-                            const currentSocio = sociosList.find(s => s.userId === userId);
-                            const userParticipation = currentSocio?.participation || 0;
-                            const montoPersonalizado = (gasto.amount * userParticipation) / 100;
+                          (() => {
+                            const gastosPendientes = gastosList.filter(gasto => {
+                              const montoPendiente = getMontoPendientePorGasto(gasto.id, sociosList.find(s => s.userId === userId)?.id || 0);
+                              return montoPendiente > 0;
+                            });
 
-                            return (
-                              <SelectItem key={gasto.id} value={String(gasto.id)}>
-                                {gasto.description} - ${montoPersonalizado.toLocaleString('es-AR')}
-                              </SelectItem>
-                            );
-                          })
+                            if (gastosPendientes.length === 0) {
+                              return (
+                                <SelectItem value="none" disabled>
+                                  No hay gastos pendientes - Todos pagados ✓
+                                </SelectItem>
+                              );
+                            }
+
+                            return gastosPendientes.map((gasto) => {
+                              const montoPendiente = getMontoPendientePorGasto(gasto.id, sociosList.find(s => s.userId === userId)?.id || 0);
+
+                              return (
+                                <SelectItem key={gasto.id} value={String(gasto.id)}>
+                                  {gasto.description} - ${montoPendiente.toLocaleString('es-AR')}
+                                </SelectItem>
+                              );
+                            });
+                          })()
                         )}
                       </SelectContent>
                     </Select>
@@ -437,7 +538,7 @@ export function Pagos() {
               ) : (
                 <div className="space-y-4">
                   {sociosList.map((socio) => {
-                    const socoPagos = pagosList.filter(p => p.partnerId === socio.id);
+                    const socoPagos = filteredPagosList.filter(p => p.partnerId === socio.id);
                     const totalPagado = socoPagos.reduce((sum, p) => sum + p.amount, 0);
                     const tienePagos = socoPagos.length > 0;
                     return (
@@ -473,7 +574,7 @@ export function Pagos() {
           </div>
 
           {/* Historial de Pagos */}
-          {pagosList.length > 0 && (
+          {filteredPagosList.length > 0 && (
             <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-xl shadow-gray-100/50 hover:shadow-2xl transition-all duration-500 hover:border-gray-200/50">
               <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${theme.iconGradient}`}></div>
               <div className="p-8">
@@ -491,6 +592,7 @@ export function Pagos() {
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Fecha</th>
+                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Concepto</th>
                         <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Socio</th>
                         <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Mes</th>
                         <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Método</th>
@@ -498,12 +600,15 @@ export function Pagos() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {pagosList.map((pago) => {
+                      {filteredPagosList.map((pago) => {
                         const socio = sociosList.find(s => s.id === pago.partnerId);
                         return (
                           <tr key={pago.id} className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-colors">
                             <td className="px-6 py-4">
                               <span className="font-medium text-gray-900">{new Date(pago.paymentDate).toLocaleDateString('es-AR')}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="font-medium text-gray-900">{gastosList.find(g => g.id === pago.expenseId)?.description}</span>
                             </td>
                             <td className="px-6 py-4">
                               <div className="font-semibold text-gray-900">{socio?.name}</div>
