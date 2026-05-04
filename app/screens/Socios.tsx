@@ -145,6 +145,7 @@ export function Socios() {
     const socioActualizado = {
       id: editingSocio.id,
       apartment: formData.apartment.trim(),
+      participation: 50,
       role: formData.role
     };
 
