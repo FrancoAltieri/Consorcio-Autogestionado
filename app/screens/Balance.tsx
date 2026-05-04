@@ -276,10 +276,10 @@ export function Balance() {
                         <p className="font-bold text-gray-900">${((balance as any).gastosRealizados ?? 0).toLocaleString('es-AR')}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-bold text-green-600">${balance.payments.toLocaleString('es-AR')}</p>
+                        <p className="font-bold text-green-600">${balance.payments}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-bold text-blue-600">${balance.debt.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</p>
+                        <p className="font-bold text-blue-600">${balance.debt}</p>
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-bold text-orange-600">{balance.penaltyForLatePayment > 0 ? `$${balance.penaltyForLatePayment.toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
