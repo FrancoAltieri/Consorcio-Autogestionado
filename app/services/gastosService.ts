@@ -2,6 +2,7 @@ import { get } from 'react-hook-form';
 import { authService } from './authService';
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL + "/expense";
+const debtUrl = import.meta.env.VITE_API_BASE_URL + "/debt";
 
 const getAuthHeaders = () => ({
     "Content-Type": "application/json",
@@ -43,6 +44,19 @@ export async function getApprovedGastos(consorcioId: string | number) {
 
     const data = await response.json();
     return Array.isArray(data.response) ? data.response : [];
+}
+
+export async function getDebtForPartner(partnerId: string | number, consorcioId: string | number) {
+    const url = debtUrl + `/all?consorcioId=${consorcioId}&partnerId=${partnerId}`;
+    const response = await fetch(url, {
+        method: "GET",
+        headers: getAuthHeaders()
+    });
+
+    if (!response.ok) throw new Error("Error al obtener la deuda del socio");
+
+    const data = await response.json();
+    return data;
 }
 
 export async function saveGasto(gasto: any) {

@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { type ChangeEvent, useEffect, useState } from 'react';
+import { useParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -17,12 +15,13 @@ import {
   Loader2,
   InfoIcon,
   CheckCircle,
-  TrendingUp
+  TrendingUp,
+  Upload
 } from 'lucide-react';
 
 import { pagoService } from '../services/pagosService';
 import { getAllSocios } from '../services/sociosService';
-import { getApprovedGastos } from '../services/gastosService';
+import { getDebtForPartner } from '../services/gastosService';
 import { authService } from '../services/authService';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -35,6 +34,7 @@ interface Pago {
   amount: number;
   paymentMethod: string;
   description: string;
+  receiptUrl: string;
 }
 
 interface Socio {
@@ -71,7 +71,6 @@ export function Pagos() {
     paymentDate: new Date().toISOString().split('T')[0],
     selectedMonth: (new Date().getMonth() + 1).toString().padStart(2, '0'),
     selectedYear: currentYear.toString(),
-    amount: "",
     paymentMethod: "",
     description: ""
   };
@@ -84,6 +83,7 @@ export function Pagos() {
   const [loading, setLoading] = useState(true);
   const [submitError, setSubmitError] = useState('');
   const [formData, setFormData] = useState(initialFormData);
+  const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [selectedFilterMonth, setSelectedFilterMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
   const [selectedFilterYear, setSelectedFilterYear] = useState(currentYear.toString());
 
@@ -130,8 +130,8 @@ export function Pagos() {
   const fetchGastos = async () => {
     if (!consorcioId) return;
     try {
-      const data = await getApprovedGastos(consorcioId);
-      setGastosList(Array.isArray(data) ? data : []);
+      const data = await getDebtForPartner(userId, consorcioId);
+      setGastosList(data);
     } catch (error) { }
   };
 
@@ -147,6 +147,11 @@ export function Pagos() {
     setSubmitError("");
   };
 
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setPaymentFile(event.target.files?.[0] ?? null);
+    setSubmitError("");
+  };
+
   const handleFilterChange = (month: string, year: string) => {
     setSelectedFilterMonth(month);
     setSelectedFilterYear(year);
@@ -154,7 +159,7 @@ export function Pagos() {
   }
 
   const handleAddPago = async () => {
-    if (!formData.amount || !formData.paymentMethod || !userId || !formData.expenseId) {
+    if (!formData.paymentMethod || !userId || !formData.expenseId || !paymentFile) {
       setSubmitError("Por favor, completa los campos obligatorios.");
       return;
     }
@@ -165,32 +170,25 @@ export function Pagos() {
       return;
     }
 
-    const montoPendiente = getMontoPendientePorGasto(Number(formData.expenseId), currentSocio.id);
-    const montoAPagar = Number(formData.amount);
-    if (montoAPagar > montoPendiente) {
-      setSubmitError(`No se puede pagar más de lo que se debe.`);
-      return;
-    }
-
     const formattedPeriod = `${formData.selectedYear}-${formData.selectedMonth}-01`;
 
-    const nuevoPago: Pago = {
+    const nuevoPago = {
       partnerId: currentSocio.id,
       expenseId: Number(formData.expenseId),
       paymentDate: formData.paymentDate,
       period: formattedPeriod,
-      amount: Number(formData.amount),
       paymentMethod: formData.paymentMethod,
       description: formData.description || ""
     };
 
     try {
-      const response = await pagoService.savePago(nuevoPago);
+      const response = await pagoService.savePago(nuevoPago, paymentFile);
       if (response.ok) {
         await fetchAllPagos();
         await fetchFilteredPagos(selectedFilterMonth, selectedFilterYear);
         setShowDialog(false);
         setFormData(initialFormData);
+        setPaymentFile(null);
       } else {
         const errorData = await response.json();
         setSubmitError(errorData?.message || "Error al guardar el pago.");
@@ -268,7 +266,7 @@ export function Pagos() {
                 </div>
                 <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Total Recaudado</h3>
                 <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  ${totalPagos.toLocaleString('es-AR')}
+                  ${totalPagos.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
@@ -363,7 +361,7 @@ export function Pagos() {
                   Registrar Mi Pago
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md rounded-2xl shadow-2xl">
+              <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto rounded-2xl shadow-2xl">
                 <DialogHeader className="pb-4 border-b border-gray-100">
                   <DialogTitle className={`text-2xl font-bold bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent`}>
                     Registrar Nuevo Pago
@@ -401,7 +399,9 @@ export function Pagos() {
                         ) : (
                           (() => {
                             const gastosPendientes = gastosList.filter(gasto => {
-                              const montoPendiente = getMontoPendientePorGasto(gasto.id, sociosList.find(s => s.userId === userId)?.id || 0);
+                              const montoPendiente = gasto.amount;
+                              /*getMontoPendientePorGasto(gasto.id, sociosList.find(s => s.userId === userId)?.id || 0)*/
+                            ;
                               return montoPendiente > 0;
                             });
 
@@ -418,7 +418,7 @@ export function Pagos() {
 
                               return (
                                 <SelectItem key={gasto.id} value={String(gasto.id)}>
-                                  {gasto.description} - ${montoPendiente.toLocaleString('es-AR')}
+                                  {gasto.description} - ${montoPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </SelectItem>
                               );
                             });
@@ -428,23 +428,13 @@ export function Pagos() {
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <div className="space-y-2">
                       <Label className="text-base font-bold text-gray-900">Fecha de Pago</Label>
                       <Input
                         type="date"
                         value={formData.paymentDate}
                         onChange={(e) => handleFieldChange('paymentDate', e.target.value)}
-                        className="rounded-xl text-base py-2.5 border-gray-200 focus:border-blue-500 transition-colors"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-base font-bold text-gray-900">Monto ($)</Label>
-                      <Input
-                        type="number"
-                        placeholder="0.00"
-                        value={formData.amount}
-                        onChange={(e) => handleFieldChange('amount', e.target.value)}
                         className="rounded-xl text-base py-2.5 border-gray-200 focus:border-blue-500 transition-colors"
                       />
                     </div>
@@ -485,7 +475,7 @@ export function Pagos() {
 
                   <div className="space-y-2">
                     <Label className="text-base font-bold text-gray-900">Método de Pago</Label>
-                    <Select onValueChange={(val) => handleFieldChange('paymentMethod', val)}>
+                    <Select value={formData.paymentMethod} onValueChange={(val) => handleFieldChange('paymentMethod', val)}>
                       <SelectTrigger className="rounded-xl text-base py-2.5 border-gray-200 focus:border-blue-500 transition-colors">
                         <SelectValue placeholder="Seleccionar..." />
                       </SelectTrigger>
@@ -498,9 +488,33 @@ export function Pagos() {
                     </Select>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label className="text-base font-bold text-gray-900">Comprobante</Label>
+                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-4 transition-colors hover:border-blue-400 hover:bg-blue-50/60">
+                      <Upload className="h-5 w-5 flex-shrink-0 text-blue-600" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-gray-900">
+                          {paymentFile ? paymentFile.name : "Subir archivo"}
+                        </p>
+                        <p className="text-xs font-medium text-gray-500">
+                          Adjunta el comprobante del pago
+                        </p>
+                      </div>
+                      <Input
+                        type="file"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
                   <div className="flex gap-3 justify-end pt-6 border-t border-gray-100 mt-6">
                     <Button
-                      onClick={() => setShowDialog(false)}
+                      onClick={() => {
+                        setShowDialog(false);
+                        setPaymentFile(null);
+                        setSubmitError("");
+                      }}
                       variant="outline"
                       className="px-6 py-2.5 rounded-xl font-semibold border-gray-200 hover:bg-gray-50 transition-all duration-300"
                     >
@@ -558,7 +572,7 @@ export function Pagos() {
                         </div>
                         <div className="text-right">
                           <p className={`text-3xl font-extrabold tracking-tight bg-gradient-to-r ${tienePagos ? 'from-green-600 to-emerald-600' : 'from-orange-600 to-yellow-600'} bg-clip-text text-transparent`}>
-                            ${totalPagado.toLocaleString('es-AR')}
+                            ${totalPagado.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                           <div className={`inline-flex items-center gap-1.5 mt-1 text-xs font-bold ${tienePagos ? 'text-green-700' : 'text-orange-700'}`}>
                             {tienePagos ? <CheckCircle className="w-3 h-3" /> : <CircleAlert className="w-3 h-3" />}
@@ -597,6 +611,7 @@ export function Pagos() {
                         <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Mes</th>
                         <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Método</th>
                         <th className="px-6 py-4 text-right font-bold text-gray-700 uppercase tracking-widest text-xs">Monto</th>
+                        <th className="px-6 py-4 text-right font-bold text-gray-700 uppercase tracking-widest text-xs">Comprobante</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -627,7 +642,19 @@ export function Pagos() {
                             </td>
                             <td className="px-6 py-4 text-right">
                               <p className="text-lg font-extrabold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                                ${pago.amount.toLocaleString('es-AR')}
+                                ${pago.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <p className="text-lg font-extrabold">
+                                <a
+                                  href={pago.receiptUrl}
+                                  className="text-green-600 hover:underline"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  Recibo
+                                </a>
                               </p>
                             </td>
                           </tr>

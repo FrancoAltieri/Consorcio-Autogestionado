@@ -56,12 +56,23 @@ export const pagoService = {
         return Array.isArray(data.response) ? data.response : [];
     },
 
-    async savePago(pago: Partial<Pago>) {
+    async savePago(pago: Partial<Pago>, file?: File) {
         const url = `${baseUrl}/save`;
+
+        if (!file) {
+            throw new Error("El archivo es obligatorio para guardar un pago");
+        }
+
+        const formData = new FormData();
+        formData.append("paymentDto", new Blob([JSON.stringify(pago)], { type: "application/json" }));
+        formData.append("file", file);
+
         return fetch(url, {
             method: "POST",
-            headers: getAuthHeaders(),
-            body: JSON.stringify(pago)
+            headers: {
+                Authorization: `Bearer ${authService.getToken()}`
+            }, 
+            body: formData
         });
     },
 
