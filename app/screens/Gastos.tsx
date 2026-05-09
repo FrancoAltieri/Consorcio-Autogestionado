@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import {
   Plus, Check, X, Calendar, CircleAlert, CheckCircle,
-  Receipt, AlertCircle, Filter, Wallet, Loader2, Users
+  Receipt, AlertCircle, Wallet, Loader2, InfoIcon
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
@@ -18,9 +18,11 @@ import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getAllSocios } from '../services/sociosService';
 import { getAllGastos, saveGasto } from '../services/gastosService';
+import { authService } from '../services/authService';
 
 interface Socio {
   id: number;
+  userId: number;
   name: string;
 }
 
@@ -37,21 +39,21 @@ interface Gasto {
 export function Gastos() {
   const { consorcioId } = useParams<{ consorcioId: string }>();
   const { theme } = useTheme();
+  const userId = authService.getUserId();
+  const userInfo = authService.getUserInfo();
 
   const initialFormData = {
     date: new Date().toISOString().split('T')[0],
     description: "",
     category: "",
-    amount: "",
-    partnerId: ""
+    amount: ""
   };
 
   const initialFieldErrors = {
     date: "",
     description: "",
     category: "",
-    amount: "",
-    partnerId: ""
+    amount: ""
   };
 
   const [loading, setLoading] = useState(true);
@@ -77,8 +79,7 @@ export function Gastos() {
       date: formData.date ? "" : "La fecha es obligatoria.",
       description: formData.description.trim() ? "" : "El concepto es obligatorio.",
       category: formData.category ? "" : "La categoría es obligatoria.",
-      amount: "",
-      partnerId: formData.partnerId ? "" : "El socio es obligatorio."
+      amount: ""
     };
 
     if (!formData.amount.trim()) {
@@ -116,12 +117,18 @@ export function Gastos() {
   const handleSaveGastos = async () => {
     if (!consorcioId || !validateForm()) return;
 
+    const currentSocio = socios.find(s => s.userId === userId);
+    if (!currentSocio) {
+      setSubmitError("Socio no encontrado.");
+      return;
+    }
+
     const nuevoGasto = {
       amount: parseFloat(formData.amount),
       description: formData.description.trim(),
       date: formData.date,
       consorcioId: Number(consorcioId),
-      partnerId: Number(formData.partnerId),
+      partnerId: currentSocio.id,
       category: formData.category
     };
 
@@ -226,6 +233,13 @@ export function Gastos() {
                       <AlertDescription>{submitError}</AlertDescription>
                     </Alert>
                   )}
+                  <div className="flex items-center gap-3 rounded-xl border border-blue-200/60 bg-blue-50 p-4">
+                    <InfoIcon className="h-5 w-5 flex-shrink-0 text-blue-600" />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-blue-600">Socio responsable</p>
+                      <p className="text-sm font-semibold text-blue-900">{userInfo.nombre}</p>
+                    </div>
+                  </div>
                   <div className="space-y-2">
                     <Label className="text-sm font-bold text-gray-500 uppercase">Fecha</Label>
                     <Input type="date" value={formData.date} onChange={(e) => handleFieldChange('date', e.target.value)} className={`rounded-xl ${fieldErrors.date ? "border-red-500" : "border-gray-100"}`} />
@@ -259,18 +273,6 @@ export function Gastos() {
                       {fieldErrors.amount && <p className="text-red-500 text-xs font-bold">{fieldErrors.amount}</p>}
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-bold text-gray-500 uppercase">Socio</Label>
-                    <Select value={formData.partnerId} onValueChange={(v) => handleFieldChange('partnerId', v)}>
-                      <SelectTrigger className={`rounded-xl ${fieldErrors.partnerId ? "border-red-500" : "border-gray-100"}`}>
-                        <SelectValue placeholder="Responsable" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {socios.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    {fieldErrors.partnerId && <p className="text-red-500 text-xs font-bold">{fieldErrors.partnerId}</p>}
-                  </div>
                   <div className="flex gap-3 mt-6">
                     <Button variant="outline" onClick={closeDialog} className="flex-1 rounded-xl">Cancelar</Button>
                     <Button onClick={handleSaveGastos} className={`flex-1 rounded-xl bg-gradient-to-r ${theme.iconGradient} text-white font-bold border-0`}>Guardar</Button>
@@ -283,7 +285,7 @@ export function Gastos() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
           <div className="relative p-8">
             <div className="flex items-center justify-between mb-5">
@@ -308,7 +310,7 @@ export function Gastos() {
           </div>
         </div>
 
-        <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
+        {/*<div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
           <div className="relative p-8">
             <div className="flex items-center justify-between mb-5">
               <div className="p-3.5 rounded-2xl bg-gradient-to-br from-orange-500 to-yellow-600 shadow-lg text-white"><AlertCircle className="w-6 h-6" /></div>
@@ -318,7 +320,7 @@ export function Gastos() {
               {gastos.filter(g => !g.approved).length}
             </p>
           </div>
-        </div>
+        </div>*/}
       </div>
 
       {/* Main List Section*/}
@@ -328,7 +330,7 @@ export function Gastos() {
           <div className="flex items-center justify-between mb-8">
             <h3 className={`text-2xl font-bold bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent`}>Movimientos</h3>
             <div className="flex bg-gray-100/50 p-1 rounded-xl border border-gray-100">
-              {(['todos', 'aprobados', 'pendientes'] as const).map((f) => (
+              {(['todos'  /*, 'aprobados', 'pendientes'*/] as const).map((f) => (
                 <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === f ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500'}`}>
                   {f.toUpperCase()}
                 </button>

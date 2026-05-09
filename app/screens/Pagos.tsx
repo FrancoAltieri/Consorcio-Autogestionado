@@ -86,10 +86,20 @@ export function Pagos() {
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [selectedFilterMonth, setSelectedFilterMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
   const [selectedFilterYear, setSelectedFilterYear] = useState(currentYear.toString());
+  const [sociosAlDia, setSociosAlDia] = useState(0);
+  const [partnerId, setPartnerId] = useState(0);
 
   const totalPagos = filteredPagosList.reduce((sum, p) => sum + p.amount, 0);
-  const sociosQuePagaron = new Set(filteredPagosList.map(p => p.partnerId)).size;
 
+  const getSocioAlDia = async () => {
+    try {
+      const cantidad = await pagoService.getSociosAlDia(consorcioId);
+      setSociosAlDia(cantidad);
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
+ 
   const fetchAllPagos = async () => {
     if (!consorcioId) return;
     setLoading(true);
@@ -123,23 +133,40 @@ export function Pagos() {
     if (!consorcioId) return;
     try {
       const data = await getAllSocios(consorcioId);
-      setSociosList(Array.isArray(data) ? data : []);
+      const socios = Array.isArray(data) ? data : [];
+      setSociosList(socios);
+      return socios;
     } catch (error) { }
+    return [];
   };
 
-  const fetchGastos = async () => {
-    if (!consorcioId) return;
+  const fetchGastos = async (currentPartnerId: number) => {
+    if (!consorcioId || !currentPartnerId) return;
     try {
-      const data = await getDebtForPartner(userId, consorcioId);
+      console.log("Obteniendo gastos para socioId:", currentPartnerId, "consorcioId:", consorcioId);
+      const data = await getDebtForPartner(currentPartnerId, consorcioId);
       setGastosList(data);
     } catch (error) { }
   };
 
   useEffect(() => {
+    const initData = async () => {
+      const socios = await fetchSocios();
+      const currentSocio = socios.find((socio) => socio.userId === userId);
+
+      if (currentSocio) {
+        setPartnerId(currentSocio.id);
+        await fetchGastos(currentSocio.id);
+      } else {
+        setPartnerId(0);
+        setGastosList([]);
+      }
+    };
+
     fetchAllPagos();
     fetchFilteredPagos(selectedFilterMonth, selectedFilterYear);
-    fetchSocios();
-    fetchGastos();
+    initData();
+    getSocioAlDia();
   }, [consorcioId]);
 
   const handleFieldChange = (field: string, value: string) => {
@@ -189,6 +216,7 @@ export function Pagos() {
         setShowDialog(false);
         setFormData(initialFormData);
         setPaymentFile(null);
+        await getSocioAlDia();
       } else {
         const errorData = await response.json();
         setSubmitError(errorData?.message || "Error al guardar el pago.");
@@ -304,7 +332,7 @@ export function Pagos() {
                 </div>
                 <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Socios al Día</h3>
                 <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  {sociosQuePagaron} / {sociosList.length}
+                  {sociosAlDia} / {sociosList.length}
                 </p>
               </div>
             </div>
@@ -414,7 +442,7 @@ export function Pagos() {
                             }
 
                             return gastosPendientes.map((gasto) => {
-                              const montoPendiente = getMontoPendientePorGasto(gasto.id, sociosList.find(s => s.userId === userId)?.id || 0);
+                              const montoPendiente = gasto.amount;
 
                               return (
                                 <SelectItem key={gasto.id} value={String(gasto.id)}>
@@ -646,16 +674,18 @@ export function Pagos() {
                               </p>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <p className="text-lg font-extrabold">
-                                <a
-                                  href={pago.receiptUrl}
-                                  className="text-green-600 hover:underline"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  Recibo
-                                </a>
-                              </p>
+                              {pago.receiptUrl && (
+                                <p className="text-lg font-extrabold">
+                                  <a
+                                    href={pago.receiptUrl}
+                                    className="text-green-600 hover:underline"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    Recibo
+                                  </a>
+                                </p>
+                              )}
                             </td>
                           </tr>
                         );
