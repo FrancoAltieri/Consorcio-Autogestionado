@@ -46,7 +46,7 @@ export function Dashboard() {
   }, [dashboardData]);
 
   const gastosPendientes = useMemo(() => {
-    return dashboardData?.gastos.filter(g => !g.aprobado) || [];
+    return dashboardData?.gastosPendientes;
   }, [dashboardData]);
 
   const CHART_DISTINCT_COLORS = [
@@ -59,9 +59,6 @@ export function Dashboard() {
     { stroke: '#06b6d4', fillStart: '#22d3ee', fillEnd: '#0891b2' }, // Cian
     { stroke: '#84cc16', fillStart: '#a3e635', fillEnd: '#65a30d' }, // Lima
   ];
-
-  const balance = dashboardData ? dashboardData.totalPagos - dashboardData.totalGastos : 0;
-  const isPositive = balance >= 0;
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -205,7 +202,7 @@ export function Dashboard() {
             </div>
             <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Gastos Pendientes</h3>
             <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent">
-              {gastosPendientes.length}
+              {gastosPendientes}
             </p>
           </div>
         </div>
@@ -377,30 +374,30 @@ export function Dashboard() {
             {dashboardData.gastos.slice(0, 5).map((gasto, index) => (
               <div key={gasto.id} className="group/item flex items-center justify-between p-5 rounded-2xl bg-gradient-to-br from-gray-50 to-white border border-gray-100 hover:shadow-lg hover:border-gray-200/50 transition-all duration-300 hover:-translate-y-1">
                 <div className="flex items-center gap-5">
-                  <div className={`p-3.5 rounded-xl ${gasto.aprobado ? 'bg-green-100' : 'bg-orange-100'} shadow-md transition-transform duration-300 group-hover/item:scale-110`}>
-                    <Receipt className={`w-6 h-6 ${gasto.aprobado ? 'text-green-600' : 'text-orange-600'}`} />
+                  <div className={`p-3.5 rounded-xl ${gasto.approved ? 'bg-green-100' : 'bg-orange-100'} shadow-md transition-transform duration-300 group-hover/item:scale-110`}>
+                    <Receipt className={`w-6 h-6 ${gasto.approved ? 'text-green-600' : 'text-orange-600'}`} />
                   </div>
                   <div>
                     <p className="font-bold text-gray-950 text-lg group-hover/item:text-gray-800 transition-colors">
-                      {gasto.description || gasto.concepto}
+                      {gasto.description}
                     </p>
                     <div className="flex items-center gap-3 mt-1.5">
                       <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full border border-gray-200">
                         {gasto.category || 'Sin categoría'}
                       </span>
                       <span className="text-sm text-gray-400 font-medium">
-                        {new Date(gasto.date || gasto.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                        {new Date(gasto.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })}
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className={`text-3xl font-extrabold tracking-tight bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent`}>
-                    ${gasto.amount?.toLocaleString('es-AR') || gasto.monto?.toLocaleString('es-AR')}
+                    ${gasto.amount?.toLocaleString('es-AR') || gasto.amount?.toLocaleString('es-AR')}
                   </p>
-                  <div className={`inline-flex items-center gap-1.5 mt-1 text-xs font-bold ${gasto.aprobado ? 'text-green-700' : 'text-orange-700'}`}>
-                    {gasto.aprobado ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                    {gasto.aprobado ? 'Aprobado' : 'Pendiente'}
+                  <div className={`inline-flex items-center gap-1.5 mt-1 text-xs font-bold ${gasto.approved ? 'text-green-700' : 'text-orange-700'}`}>
+                    {gasto.approved ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                    {gasto.approved ? 'Aprobado' : 'Pendiente'}
                   </div>
                 </div>
               </div>
