@@ -81,6 +81,7 @@ export function Pagos() {
   const [sociosList, setSociosList] = useState<Socio[]>([]);
   const [gastosList, setGastosList] = useState<Gasto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [formData, setFormData] = useState(initialFormData);
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
@@ -186,6 +187,8 @@ export function Pagos() {
   }
 
   const handleAddPago = async () => {
+    if (isSubmittingPayment) return;
+
     if (!formData.paymentMethod || !userId || !formData.expenseId || !paymentFile) {
       setSubmitError("Por favor, completa los campos obligatorios.");
       return;
@@ -208,6 +211,8 @@ export function Pagos() {
       description: formData.description || ""
     };
 
+    setIsSubmittingPayment(true);
+
     try {
       const response = await pagoService.savePago(nuevoPago, paymentFile);
       if (response.ok) {
@@ -223,6 +228,8 @@ export function Pagos() {
       }
     } catch (error) {
       setSubmitError("Error de conexión.");
+    } finally {
+      setIsSubmittingPayment(false);
     }
   };
 
@@ -262,129 +269,9 @@ export function Pagos() {
             </h2>
             <p className="text-gray-600 text-xl font-medium">Registra y gestiona los pagos del consorcio</p>
           </div>
-          <div className={`p-3.5 rounded-2xl bg-gradient-to-br ${theme.iconGradient} shadow-lg shadow-${theme.iconGradient.split(' ')[1]}/30`}>
-            <CreditCard className="w-8 h-8 text-white" />
-          </div>
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {loading ? (
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="relative">
-            <div className={`absolute inset-0 bg-gradient-to-r ${theme.iconGradient} opacity-20 blur-2xl animate-pulse`}></div>
-            <Loader2 className={`w-16 h-16 animate-spin text-transparent bg-gradient-to-r ${theme.iconGradient} bg-clip-text relative z-10`} />
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Stats Cards - 3 métricas importantes */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Card 1 - Total Recaudado */}
-            <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:border-green-100">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative p-8">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="p-3.5 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30 group-hover:scale-110 transition-transform duration-500">
-                    <DollarSign className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="px-3 py-1 rounded-full bg-green-50 border border-green-200">
-                    <span className="text-xs font-bold text-green-700">Recaudado</span>
-                  </div>
-                </div>
-                <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Total Recaudado</h3>
-                <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  ${totalPagos.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-
-            {/* Card 2 - Total Transacciones */}
-            <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:border-gray-200/50">
-              <div className={`absolute inset-0 bg-gradient-to-br ${theme.iconGradient} opacity-0 group-hover:opacity-[0.03] transition-opacity duration-500`}></div>
-              <div className="relative p-8">
-                <div className="flex items-center justify-between mb-5">
-                  <div className={`p-3.5 rounded-2xl bg-gradient-to-br ${theme.iconGradient} shadow-lg shadow-${theme.iconGradient.split(' ')[1]}/30 group-hover:scale-110 transition-transform duration-500`}>
-                    <TrendingUp className="w-6 h-6 text-white" />
-                  </div>
-                  <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${theme.badgeBg} border ${theme.badgeBorder}`}>
-                    <span className={`text-xs font-bold text-purple-700 ${theme.badgeText}`}>Movimientos</span>
-                  </div>
-                </div>
-                <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Transacciones</h3>
-                <p className={`text-4xl font-extrabold tracking-tight bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent`}>
-                  {filteredPagosList.length}
-                </p>
-              </div>
-            </div>
-
-            {/* Card 3 - Socios al Día */}
-            <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:border-blue-100">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative p-8">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="p-3.5 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform duration-500">
-                    <CheckCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="px-3 py-1 rounded-full bg-blue-50 border border-blue-200">
-                    <span className="text-xs font-bold text-blue-700">Al Día</span>
-                  </div>
-                </div>
-                <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Socios al Día</h3>
-                <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  {sociosAlDia} / {sociosList.length}
-                </p>
-              </div>
-            </div>
-          </div>
-
-
-          <div className="flex justify-between">
-            {/* Filtros de mes y año */}
-            <div className="flex gap-2 items-center bg-white rounded-2xl border-gray-200 p-1 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
-              <Select value={selectedFilterMonth} onValueChange={(val) => handleFilterChange(val, selectedFilterYear)}>
-                <SelectTrigger className="w-32 rounded-xl">
-                  <SelectValue placeholder="Mes" />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map(m => (
-                    <SelectItem key={m.val} value={m.val}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedFilterYear.toString()} onValueChange={(val) => handleFilterChange(selectedFilterMonth, val)}>
-                <SelectTrigger className="w-24 rounded-xl">
-                  <SelectValue placeholder="Año" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={(currentYear - 1).toString()}>{currentYear - 1}</SelectItem>
-                  <SelectItem value={currentYear.toString()}>{currentYear}</SelectItem>
-                  <SelectItem value={(currentYear + 1).toString()}>{currentYear + 1}</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
-                  const currentYear = (new Date().getFullYear()).toString();
-                  setSelectedFilterMonth(currentMonth);
-                  setSelectedFilterYear(currentYear);
-                  fetchFilteredPagos(currentMonth, currentYear);
-                }}
-                className="rounded-xl"
-              >
-                Actual
-              </Button>
-            </div>
-
-            {/* Botón Registrar Pago */}
-            {/* <div className="flex justify-end"> */}
-            <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          <Dialog open={showDialog} onOpenChange={setShowDialog}>
               <DialogTrigger asChild>
-                <Button className={`px-8 py-3 rounded-2xl bg-gradient-to-r ${theme.iconGradient} text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2`}>
+                <Button className={`h-14 px-8 rounded-2xl bg-gradient-to-r ${theme.iconGradient} hover:opacity-90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 text-lg font-bold text-white border-0`}>
                   <Plus className="w-5 h-5" />
                   Registrar Mi Pago
                 </Button>
@@ -550,14 +437,134 @@ export function Pagos() {
                     </Button>
                     <Button
                       onClick={handleAddPago}
+                      disabled={isSubmittingPayment || gastosList.length === 0}
                       className={`px-6 py-2.5 rounded-xl font-semibold bg-gradient-to-r ${theme.iconGradient} text-white shadow-lg hover:shadow-xl transition-all duration-300`}
                     >
-                      Confirmar Pago
+                      {isSubmittingPayment && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {isSubmittingPayment ? 'Confirmando...' : 'Confirmar Pago'}
                     </Button>
                   </div>
                 </div>
               </DialogContent>
             </Dialog>
+        </div>
+      </div>
+
+      {/* Loading State */}
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="relative">
+            <div className={`absolute inset-0 bg-gradient-to-r ${theme.iconGradient} opacity-20 blur-2xl animate-pulse`}></div>
+            <Loader2 className={`w-16 h-16 animate-spin text-transparent bg-gradient-to-r ${theme.iconGradient} bg-clip-text relative z-10`} />
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Stats Cards - 3 métricas importantes */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Card 1 - Total Recaudado */}
+            <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:border-green-100">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="relative p-8">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30 group-hover:scale-110 transition-transform duration-500">
+                    <DollarSign className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="px-3 py-1 rounded-full bg-green-50 border border-green-200">
+                    <span className="text-xs font-bold text-green-700">Recaudado</span>
+                  </div>
+                </div>
+                <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Total Recaudado</h3>
+                <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                  ${totalPagos.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2 - Total Transacciones */}
+            <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:border-gray-200/50">
+              <div className={`absolute inset-0 bg-gradient-to-br ${theme.iconGradient} opacity-0 group-hover:opacity-[0.03] transition-opacity duration-500`}></div>
+              <div className="relative p-8">
+                <div className="flex items-center justify-between mb-5">
+                  <div className={`p-3.5 rounded-2xl bg-gradient-to-br ${theme.iconGradient} shadow-lg shadow-${theme.iconGradient.split(' ')[1]}/30 group-hover:scale-110 transition-transform duration-500`}>
+                    <TrendingUp className="w-6 h-6 text-white" />
+                  </div>
+                  <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${theme.badgeBg} border ${theme.badgeBorder}`}>
+                    <span className={`text-xs font-bold text-purple-700 ${theme.badgeText}`}>Movimientos</span>
+                  </div>
+                </div>
+                <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Transacciones</h3>
+                <p className={`text-4xl font-extrabold tracking-tight bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent`}>
+                  {filteredPagosList.length}
+                </p>
+              </div>
+            </div>
+
+            {/* Card 3 - Socios al Día */}
+            <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:border-blue-100">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="relative p-8">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform duration-500">
+                    <CheckCircle className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="px-3 py-1 rounded-full bg-blue-50 border border-blue-200">
+                    <span className="text-xs font-bold text-blue-700">Al Día</span>
+                  </div>
+                </div>
+                <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Socios al Día</h3>
+                <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  {sociosAlDia} / {sociosList.length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+
+          <div className="flex justify-between">
+            {/* Filtros de mes y año */}
+            <div className="flex gap-2 items-center bg-white rounded-2xl border-gray-200 p-1 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Select value={selectedFilterMonth} onValueChange={(val) => handleFilterChange(val, selectedFilterYear)}>
+                <SelectTrigger className="w-32 rounded-xl">
+                  <SelectValue placeholder="Mes" />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map(m => (
+                    <SelectItem key={m.val} value={m.val}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedFilterYear.toString()} onValueChange={(val) => handleFilterChange(selectedFilterMonth, val)}>
+                <SelectTrigger className="w-24 rounded-xl">
+                  <SelectValue placeholder="Año" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={(currentYear - 1).toString()}>{currentYear - 1}</SelectItem>
+                  <SelectItem value={currentYear.toString()}>{currentYear}</SelectItem>
+                  <SelectItem value={(currentYear + 1).toString()}>{currentYear + 1}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+                  const currentYear = (new Date().getFullYear()).toString();
+                  setSelectedFilterMonth(currentMonth);
+                  setSelectedFilterYear(currentYear);
+                  fetchFilteredPagos(currentMonth, currentYear);
+                }}
+                className="rounded-xl"
+              >
+                Actual
+              </Button>
+            </div>
+
+            {/* Botón Registrar Pago */}
+            {/* <div className="flex justify-end"> */}
+            
           </div>
 
           {/* Estado de Pagos por Socio */}

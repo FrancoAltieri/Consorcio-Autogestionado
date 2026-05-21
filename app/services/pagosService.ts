@@ -53,7 +53,6 @@ export const pagoService = {
         if (!response.ok) throw new Error("Error al obtener los pagos por período");
 
         const data = await response.json();
-        console.log("Pagos por período:", data);
         return Array.isArray(data.response) ? data.response : [];
     },
 
