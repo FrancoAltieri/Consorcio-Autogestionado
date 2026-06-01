@@ -230,7 +230,7 @@ export function Socios() {
                   <Users className="w-6 h-6 text-white" />
                 </div>
                 <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${theme.badgeBg} border ${theme.badgeBorder}`}>
-                  <span className={`text-xs font-bold ${theme.badgeText}`}>Total</span>
+                  <span className={`text-xs font-bold `}>Total</span>
                 </div>
               </div>
               <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Total de Socios</h3>

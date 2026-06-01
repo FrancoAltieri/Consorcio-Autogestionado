@@ -141,7 +141,7 @@ export function Dashboard() {
                 <Receipt className="w-6 h-6 text-white" />
               </div>
               <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${theme.badgeBg} border ${theme.badgeBorder}`}>
-                <span className={`text-xs font-bold ${theme.badgeText}`}>
+                <span className={`text-xs font-bold`}>
                   {dashboardData.gastos.length} registros
                 </span>
               </div>
@@ -398,10 +398,6 @@ export function Dashboard() {
                   <p className={`text-3xl font-extrabold tracking-tight bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent`}>
                     ${gasto.amount?.toLocaleString('es-AR') || gasto.monto?.toLocaleString('es-AR')}
                   </p>
-                  <div className={`inline-flex items-center gap-1.5 mt-1 text-xs font-bold ${gasto.aprobado ? 'text-green-700' : 'text-orange-700'}`}>
-                    {gasto.aprobado ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                    {gasto.aprobado ? 'Aprobado' : 'Pendiente'}
-                  </div>
                 </div>
               </div>
             ))}
