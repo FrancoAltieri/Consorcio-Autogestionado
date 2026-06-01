@@ -24,6 +24,7 @@ export function SociosMain() {
         closeDialog,
         handleFieldChange,
         handleDeleteSocio,
+        handlePromoteSocio,
         handleUpdateSocio,
         copyToClipboard,
     } = useSocios();
@@ -48,6 +49,7 @@ export function SociosMain() {
                     currentUserRole={currentUserRole}
                     onEdit={openEditDialog}
                     onDelete={handleDeleteSocio}
+                    onPromote={handlePromoteSocio}
                 />
             )}
 

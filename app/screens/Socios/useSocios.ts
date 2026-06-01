@@ -127,6 +127,35 @@ export function useSocios() {
         }
     };
 
+    const handlePromoteSocio = async (id: number) => {
+        if (!confirm('¿Estás seguro de promover a este socio a Administrador?')) return;
+        try {
+            const socio = sociosList.find((s) => s.id === id);
+            if (!socio) {
+                setSubmitError('Socio no encontrado.');
+                return;
+            }
+
+            const socioActualizado = {
+                id: socio.id,
+                apartment: socio.apartment || '',
+                participation: socio.participation || 50,
+                role: 'ADMIN',
+            };
+
+            const response: any = await updateSocio(socioActualizado);
+            if (response && typeof response.ok !== 'undefined' && !response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                setSubmitError(errorData.message || 'No se pudo promover el socio.');
+                return;
+            }
+
+            await fetchSocios();
+        } catch (error) {
+            setSubmitError('Error de conexión al promover el socio.');
+        }
+    };
+
     const handleUpdateSocio = async () => {
         if (!editingSocio || !validateForm()) return;
 
@@ -177,6 +206,7 @@ export function useSocios() {
         closeDialog,
         handleFieldChange,
         handleDeleteSocio,
+        handlePromoteSocio,
         handleUpdateSocio,
         copyToClipboard,
     } as const;

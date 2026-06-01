@@ -7,9 +7,10 @@ interface Props {
     currentUserRole: string | null;
     onEdit: (s: Socio) => void;
     onDelete: (id: number) => void;
+    onPromote: (id: number) => void;
 }
 
-export function SocioCard({ socio, currentUserRole, onEdit, onDelete }: Props) {
+export function SocioCard({ socio, currentUserRole, onEdit, onDelete, onPromote }: Props) {
     return (
         <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:border-gray-200/50">
             <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${socio.role === 'ADMIN' ? 'from-purple-500 to-indigo-500' : 'from-emerald-500 to-green-500'}`}></div>
@@ -53,6 +54,9 @@ export function SocioCard({ socio, currentUserRole, onEdit, onDelete }: Props) {
 
                 {currentUserRole === 'ADMIN' && (
                     <div className="flex gap-3 pt-4 border-t border-gray-100">
+                        {socio.role !== 'ADMIN' && (
+                            <Button onClick={() => onPromote(socio.id)} className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300">Promover</Button>
+                        )}
                         <Button onClick={() => onEdit(socio)} className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300">Editar</Button>
                         <Button onClick={() => onDelete(socio.id)} className="flex-1 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300">Eliminar</Button>
                     </div>
