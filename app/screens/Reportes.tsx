@@ -6,6 +6,8 @@ import { Download, FileText, DollarSign, TrendingUp, AlertTriangle, InfoIcon, Lo
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BalanceDeConsorcio, getBalance } from '@/services/balanceService';
+import { reporteService } from '@/services/reportesService';
+import { authService } from '@/services/authService';
 
 export function Reportes() {
   const { consorcioId } = useParams<{ consorcioId: string }>();
@@ -13,6 +15,7 @@ export function Reportes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reporte, setReporte] = useState<BalanceDeConsorcio | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const loadReporte = async () => {
@@ -78,6 +81,22 @@ export function Reportes() {
     { mes: 'Sem 3', gastos: reporte.totalExpenses * 0.75, pagos: reporte.totalPayments * 0.6 },
     { mes: 'Sem 4', gastos: reporte.totalExpenses, pagos: reporte.totalPayments },
   ];
+
+  const handleDownloadMonthlyReport = async () => {
+    if (!consorcioId) return;
+
+    setDownloading(true);
+    try {
+      // Usar el mes actual o permitir seleccionar
+      const now = new Date();
+      const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      await reporteService.downloadMonthlySummary(Number(consorcioId), period);
+    } catch (error) {
+      console.error("Error al descargar:", error);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const reportes = [
     { id: 1, nombre: 'Resumen Mensual Completo', descripcion: 'Balance general con todos los gastos y pagos del mes', icono: FileText, color: 'from-blue-500 to-indigo-600' },
@@ -279,8 +298,18 @@ export function Reportes() {
                       </h4>
                       <p className="text-sm text-gray-600 mb-4">{reporteItem.descripcion}</p>
                       <div className="flex gap-3">
-                        <Button size="sm" className={`flex-1 bg-gradient-to-r ${reporteItem.color} text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 rounded-xl`}>
-                          <Download className="w-4 h-4 mr-2" /> PDF
+                        <Button
+                          size="sm"
+                          className={`flex-1 bg-gradient-to-r ${reporteItem.color} text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 rounded-xl`}
+                          onClick={reporteItem.id === 1 ? handleDownloadMonthlyReport : undefined}
+                          disabled={reporteItem.id === 1 && downloading}
+                        >
+                          {reporteItem.id === 1 && downloading ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4 mr-2" />
+                          )}
+                          PDF
                         </Button>
                         <Button size="sm" variant="outline" className="flex-1 border-gray-200 hover:bg-gray-50 font-semibold rounded-xl">
                           <Download className="w-4 h-4 mr-2" /> Excel
