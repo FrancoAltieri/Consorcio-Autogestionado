@@ -71,7 +71,7 @@ export const pagoService = {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${authService.getToken()}`
-            }, 
+            },
             body: formData
         });
     },
@@ -89,24 +89,4 @@ export const pagoService = {
         const data = await response.json();
         return data.amount || 0;
     }
-
-    // Te dejo los métodos comentados por si los necesitás habilitar luego
-    /*
-    async deletePago(id: number) {
-        const url = `${baseUrl}/delete/${id}`;
-        return fetch(url, {
-            method: "DELETE",
-            headers: getAuthHeaders()
-        });
-    },
-
-    async updatePago(pago: Pago) {
-        const url = `${baseUrl}/edit`;
-        return fetch(url, {
-            method: "PUT",
-            headers: getAuthHeaders(),
-            body: JSON.stringify(pago)
-        });
-    }
-    */
 };

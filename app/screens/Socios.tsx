@@ -230,7 +230,7 @@ export function Socios() {
                   <Users className="w-6 h-6 text-white" />
                 </div>
                 <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${theme.badgeBg} border ${theme.badgeBorder}`}>
-                  <span className={`text-xs font-bold ${theme.badgeText}`}>Total</span>
+                  <span className={`text-xs font-bold text-purple-700`}>Total</span>
                 </div>
               </div>
               <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Total de Socios</h3>
@@ -248,8 +248,8 @@ export function Socios() {
                 <div className="p-3.5 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform duration-500">
                   <Shield className="w-6 h-6 text-white" />
                 </div>
-                <div className="px-3 py-1 rounded-full bg-purple-50 border border-purple-200">
-                  <span className="text-xs font-bold text-purple-700">Admins</span>
+                <div className="px-3 py-1 rounded-full bg-blue-50 border border-blue-200">
+                  <span className="text-xs font-bold text-blue-700">Admins</span>
                 </div>
               </div>
               <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Administradores</h3>

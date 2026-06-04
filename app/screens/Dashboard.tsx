@@ -108,6 +108,10 @@ export function Dashboard() {
     );
   }
 
+  const currentDate = new Date();
+  const currentMonthYear = currentDate.toLocaleDateString("es-AR", { month: "long", year: "numeric", }).replace(" de ", " ");
+  const formattedMonthYear = currentMonthYear.charAt(0).toUpperCase() + currentMonthYear.slice(1);
+
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header Section - Más aire y mejor tipografía */}
@@ -122,9 +126,9 @@ export function Dashboard() {
             </h2>
             <p className="text-gray-600 text-xl font-medium">Resumen del estado del consorcio en tiempo real</p>
           </div>
-          <div className={`px-5 py-2.5 rounded-2xl bg-gradient-to-r ${theme.badgeBg} border ${theme.badgeBorder} shadow-inner`}>
-            <span className={`text-sm font-bold ${theme.badgeText}`}>
-              Marzo 2026 {/* Hardcodeado temporalmente, debería venir del back */}
+          <div className={`px-15 py-6 rounded-2xl bg-gradient-to-r ${theme.badgeBg} border ${theme.badgeBorder} shadow-inner`}>
+            <span className={`text-3xl font-bold text-transparent bg-gradient-to-r ${theme.textGradient} bg-clip-text`}>
+              {formattedMonthYear}
             </span>
           </div>
         </div>
@@ -141,7 +145,7 @@ export function Dashboard() {
                 <Receipt className="w-6 h-6 text-white" />
               </div>
               <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${theme.badgeBg} border ${theme.badgeBorder}`}>
-                <span className={`text-xs font-bold ${theme.badgeText}`}>
+                <span className={`text-xs font-bold text-purple-700`}>
                   {dashboardData.gastos.length} registros
                 </span>
               </div>
