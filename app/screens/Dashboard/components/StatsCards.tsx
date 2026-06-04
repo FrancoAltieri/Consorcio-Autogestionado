@@ -67,6 +67,9 @@ export function StatsCards({ dashboardData, gastosPendientes }: Props) {
           <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
             {dashboardData.sociosEnMora}
           </p>
+          <p className="mt-2 text-xs font-semibold text-red-700">
+            {dashboardData.sociosConDeudaVencida ?? 0} vencidos · {Number(dashboardData.porcentajeSociosMorosos ?? 0).toFixed(1)}%
+          </p>
         </div>
       </div>
 
@@ -82,9 +85,12 @@ export function StatsCards({ dashboardData, gastosPendientes }: Props) {
               <span className="text-xs font-bold text-orange-700">Por Aprobar</span>
             </div>
           </div>
-          <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Gastos Pendientes</h3>
+          <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Deuda Vencida</h3>
           <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent">
-            {gastosPendientes.length}
+            ${Number(dashboardData.deudaTotalVencida ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+          </p>
+          <p className="mt-2 text-xs font-semibold text-orange-700">
+            En mora: ${Number(dashboardData.deudaTotalEnMora ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
           </p>
         </div>
       </div>

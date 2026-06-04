@@ -5,9 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingDown, AlertCircle, CheckCircle, InfoIcon, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useTheme } from '@/contexts/ThemeContext';
+import { formatPeriodToMonthYear } from '@/utils/period';
 
 export default function BalanceMain() {
-    const { loading, error, balanceData, consorcioId } = useBalance();
+    const { loading, error, balanceData, consorcioId, selectedPeriod, handlePrevPeriod, handleNextPeriod } = useBalance();
     const { theme } = useTheme();
 
     if (loading) {
@@ -41,20 +42,53 @@ export default function BalanceMain() {
         );
     }
 
-    const chartData = balanceData.perPartnerBalance;
+    const chartData = balanceData.perPartnerBalance || [];
 
-    const totalMora = balanceData.totalMora;
-    const sociosEnMora = chartData.filter((socio: any) => socio.penaltyForLatePayment > 0).length;
-    const sociosAFavor = chartData.length - sociosEnMora;
+    // Normalize and sort data by outstanding amount (debt - payments) desc
+    const sortedChartData = [...chartData].map((p: any) => ({
+        name: p.name || 'Socio',
+        debt: Number(p.debt ?? 0),
+        payments: Number(p.payments ?? 0),
+        overdueDebt: Number(p.overdueDebt ?? 0),
+        moroseDebt: Number(p.moroseDebt ?? 0),
+        status: p.debtStatus ?? 'PAGADA',
+    })).sort((a: any, b: any) => ((b.overdueDebt || b.debt - b.payments) - (a.overdueDebt || a.debt - a.payments)));
 
-    const CustomTooltip = ({ active, payload }: any) => {
+    const totalMora = balanceData.totalMoroseDebt ?? balanceData.totalMora ?? 0;
+    const sociosEnMora = balanceData.countPartnersInMorosity ?? 0;
+    const sociosConVencida = balanceData.countPartnersWithOverdueDebt ?? 0;
+    const sociosAFavor = sortedChartData.filter((socio: any) => (socio.payments ?? 0) > (socio.debt ?? 0)).length;
+    const statusLabel = (status?: string) => {
+        if (status === 'EN_MORA') return 'En mora';
+        if (status === 'VENCIDA') return 'Vencida';
+        if (status === 'PENDIENTE') return 'Pendiente';
+        return 'Al dia';
+    };
+    const statusBadge = (status?: string) => {
+        if (status === 'EN_MORA') return 'bg-gradient-to-r from-red-100 to-orange-100 text-red-800';
+        if (status === 'VENCIDA') return 'bg-gradient-to-r from-orange-100 to-yellow-100 text-orange-800';
+        if (status === 'PENDIENTE') return 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800';
+        return 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800';
+    };
+
+    const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
-                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-100/50 min-w-[180px]">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">{payload[0].name}</p>
-                    <p className="text-2xl font-bold text-gray-950">
-                        ${Number(payload[0].value).toLocaleString('es-AR')}
-                    </p>
+                <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-100/50 min-w-[200px]">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">{label}</p>
+                    <div className="space-y-2">
+                        {payload.map((p: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <span style={{ backgroundColor: p.color || p.stroke }} className="w-3 h-3 rounded-sm inline-block" />
+                                    <span className="text-sm text-gray-600">{p.name}</span>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-lg font-bold text-gray-900">${Number(p.value).toLocaleString('es-AR')}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             );
         }
@@ -75,8 +109,21 @@ export default function BalanceMain() {
                         </h2>
                         <p className="text-gray-600 text-xl font-medium">Estado financiero detallado de cada socio</p>
                     </div>
-                    <div className={`p-3.5 rounded-2xl bg-gradient-to-br ${theme.iconGradient} shadow-lg shadow-${theme.iconGradient.split(' ')[1]}/30`}>
-                        <BarChart3 className="w-8 h-8 text-white" />
+                    <div className="flex items-center gap-3">
+                        <button onClick={handlePrevPeriod} className="p-2 rounded-md hover:bg-gray-100">
+                            <svg className="w-5 h-5 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </button>
+                        <div className={`px-5 py-2.5 rounded-2xl bg-gradient-to-r ${theme.badgeBg} border ${theme.badgeBorder} shadow-inner`}>
+                            <span className={`text-sm font-bold`}>
+                                {selectedPeriod ? formatPeriodToMonthYear(selectedPeriod) : ''}
+                            </span>
+                        </div>
+                        <button onClick={handleNextPeriod} className="p-2 rounded-md hover:bg-gray-100">
+                            <svg className="w-5 h-5 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 6l6 6-6 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </button>
+                        <div className={`p-3.5 rounded-2xl bg-gradient-to-br ${theme.iconGradient} shadow-lg shadow-${theme.iconGradient.split(' ')[1]}/30`}>
+                            <BarChart3 className="w-8 h-8 text-white" />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -108,6 +155,7 @@ export default function BalanceMain() {
                         <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
                             {sociosEnMora}
                         </p>
+                        <p className="mt-2 text-xs font-semibold text-red-700">{sociosConVencida} con deuda vencida</p>
                     </div>
                 </div>
 
@@ -174,11 +222,15 @@ export default function BalanceMain() {
 
                         <div className="bg-gradient-to-br from-gray-50 to-white rounded-3xl p-6 border border-gray-100 shadow-inner">
                             <ResponsiveContainer width="100%" height={400}>
-                                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+                                <BarChart data={sortedChartData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
                                     <defs>
-                                        <linearGradient id="gradMora" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#f59e0b" stopOpacity={1} />
-                                            <stop offset="100%" stopColor="#d97706" stopOpacity={0.8} />
+                                        <linearGradient id="gradDebt" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
+                                            <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.6} />
+                                        </linearGradient>
+                                        <linearGradient id="gradPaid" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
+                                            <stop offset="100%" stopColor="#34d399" stopOpacity={0.6} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
@@ -186,7 +238,9 @@ export default function BalanceMain() {
                                     <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} tickLine={false} axisLine={false} tickFormatter={(value) => `$${Number(value) / 1000}k`} />
                                     <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(229, 231, 235, 0.3)', radius: 10 }} />
                                     <Legend />
-                                    <Bar dataKey="penaltyForLatePayment" fill="url(#gradMora)" name="Mora" radius={[12, 12, 0, 0]} animationDuration={1500} />
+                                    <Bar dataKey="debt" fill="url(#gradDebt)" name="Debe" radius={[12, 12, 0, 0]} animationDuration={1500} />
+                                    <Bar dataKey="payments" fill="url(#gradPaid)" name="Pagos" radius={[12, 12, 0, 0]} animationDuration={1500} />
+                                    <Bar dataKey="overdueDebt" fill="#f97316" name="Deuda Vencida" radius={[12, 12, 0, 0]} animationDuration={1500} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -220,7 +274,9 @@ export default function BalanceMain() {
                                         <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Gastos</th>
                                         <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Pagos</th>
                                         <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Debe Aportar</th>
-                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Mora</th>
+                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Pendiente</th>
+                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Vencida</th>
+                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">En Mora</th>
                                         <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Estado</th>
                                     </tr>
                                 </thead>
@@ -240,18 +296,18 @@ export default function BalanceMain() {
                                                 <p className="font-bold text-blue-600">${balance.debt}</p>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <p className="font-bold text-orange-600">{balance.penaltyForLatePayment > 0 ? `$${balance.penaltyForLatePayment.toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
+                                                <p className="font-bold text-orange-600">{(balance.outstandingDebt ?? 0) > 0 ? `$${Number(balance.outstandingDebt).toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
                                             </td>
                                             <td className="px-6 py-4">
-                                                {balance.penaltyForLatePayment > 0 && (
-                                                    <Badge className="bg-gradient-to-r from-red-100 to-orange-100 text-red-800 border-0 font-semibold">Debe</Badge>
-                                                )}
-                                                {balance.payments > balance.debt && (
-                                                    <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-0 font-semibold">A Favor</Badge>
-                                                )}
-                                                {balance.payments == balance.debt && (
-                                                    <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-0 font-semibold">Al Día</Badge>
-                                                )}
+                                                <p className="font-bold text-orange-700">{(balance.overdueDebt ?? 0) > 0 ? `$${Number(balance.overdueDebt).toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <p className="font-bold text-red-700">{(balance.moroseDebt ?? 0) > 0 ? `$${Number(balance.moroseDebt).toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <Badge className={`${statusBadge(balance.debtStatus)} border-0 font-semibold`}>
+                                                    {statusLabel(balance.debtStatus)}
+                                                </Badge>
                                             </td>
                                         </tr>
                                     ))}
@@ -281,7 +337,7 @@ export default function BalanceMain() {
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="font-bold text-blue-900 mt-0.5">•</span>
-                                <span><strong>Mora:</strong> 5% sobre saldo negativo si tiene deuda</span>
+                                <span><strong>Mora:</strong> una deuda vence al cierre del período y pasa a mora si atraviesa un mes completo sin pago.</span>
                             </li>
                         </ul>
                     </div>

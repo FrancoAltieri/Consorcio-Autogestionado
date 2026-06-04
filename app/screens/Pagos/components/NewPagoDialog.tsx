@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { InfoIcon, Plus, Upload } from 'lucide-react';
 import type { Gasto } from '../usePagos';
 
@@ -34,6 +35,19 @@ interface Props {
 export function NewPagoDialog({ open, onOpenChange, formData, months, currentYear, submitError, paymentFile, onFieldChange, onFileChange, onSave, gastosList }: Props) {
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         onFileChange(e.target.files?.[0] ?? null);
+    };
+
+    const statusLabel = (status?: Gasto['status']) => {
+        if (status === 'EN_MORA') return 'En mora';
+        if (status === 'VENCIDA') return 'Vencida';
+        if (status === 'PENDIENTE') return 'Pendiente';
+        return 'Pendiente';
+    };
+
+    const statusClass = (status?: Gasto['status']) => {
+        if (status === 'EN_MORA') return 'bg-red-100 text-red-800';
+        if (status === 'VENCIDA') return 'bg-orange-100 text-orange-800';
+        return 'bg-blue-100 text-blue-800';
     };
 
     return (
@@ -80,11 +94,32 @@ export function NewPagoDialog({ open, onOpenChange, formData, months, currentYea
                                     <SelectItem value="none" disabled>No hay gastos aprobados</SelectItem>
                                 ) : (
                                     gastosList.map((gasto) => (
-                                        <SelectItem key={gasto.id} value={String(gasto.id)}>{gasto.description} - ${gasto.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</SelectItem>
+                                        <SelectItem key={gasto.id} value={String(gasto.id)}>
+                                            {gasto.description} - ${gasto.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </SelectItem>
                                     ))
                                 )}
                             </SelectContent>
                         </Select>
+                        {formData.expenseId && (
+                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                                {(() => {
+                                    const selectedDebt = gastosList.find((gasto) => String(gasto.id) === formData.expenseId);
+                                    if (!selectedDebt) return <p className="text-xs font-medium text-gray-500">Selecciona una deuda pendiente.</p>;
+                                    return (
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Vencimiento</p>
+                                                <p className="text-sm font-semibold text-gray-900">{selectedDebt.dueDate ?? '-'}</p>
+                                            </div>
+                                            <Badge className={`${statusClass(selectedDebt.status)} border-0 font-semibold`}>
+                                                {statusLabel(selectedDebt.status)}
+                                            </Badge>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-2">

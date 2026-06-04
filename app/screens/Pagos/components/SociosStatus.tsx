@@ -1,14 +1,37 @@
 import { DollarSign, CheckCircle, CircleAlert } from 'lucide-react';
 import type { Socio, Pago, Gasto } from '../usePagos';
+import type { BalanceSocio } from '@/services/balanceService';
 
 interface Props {
     socios: Socio[];
     pagos: Pago[];
     gastos: Gasto[];
+    partnerBalances?: BalanceSocio[];
     formatPeriod?: (p: string) => string;
 }
 
-export function SociosStatus({ socios, pagos, gastos }: Props) {
+export function SociosStatus({ socios, pagos, partnerBalances = [] }: Props) {
+    const statusLabel = (status?: BalanceSocio['debtStatus']) => {
+        if (status === 'EN_MORA') return 'En mora';
+        if (status === 'VENCIDA') return 'Vencido';
+        if (status === 'PENDIENTE') return 'Pendiente';
+        return 'Al dia';
+    };
+
+    const statusColor = (status?: BalanceSocio['debtStatus']) => {
+        if (status === 'EN_MORA') return 'text-red-700';
+        if (status === 'VENCIDA') return 'text-orange-700';
+        if (status === 'PENDIENTE') return 'text-blue-700';
+        return 'text-green-700';
+    };
+
+    const iconTone = (status?: BalanceSocio['debtStatus']) => {
+        if (status === 'EN_MORA') return 'bg-red-100 text-red-600';
+        if (status === 'VENCIDA') return 'bg-orange-100 text-orange-600';
+        if (status === 'PENDIENTE') return 'bg-blue-100 text-blue-600';
+        return 'bg-green-100 text-green-600';
+    };
+
     return (
         <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-xl shadow-gray-100/50 hover:shadow-2xl transition-all duration-500 hover:border-gray-200/50 mb-6">
             <div className="p-8">
@@ -26,23 +49,33 @@ export function SociosStatus({ socios, pagos, gastos }: Props) {
                         {socios.map((socio) => {
                             const socoPagos = pagos.filter(p => p.partnerId === socio.id);
                             const totalPagado = socoPagos.reduce((sum, p) => sum + p.amount, 0);
-                            const tienePagos = socoPagos.length > 0;
+                            const balance = partnerBalances.find((item) => Number(item.partnerId) === Number(socio.id));
+                            const status = balance?.debtStatus ?? 'PAGADA';
+                            const outstanding = balance?.outstandingDebt ?? 0;
+                            const overdue = balance?.overdueDebt ?? 0;
+                            const hasProblem = status === 'VENCIDA' || status === 'EN_MORA';
                             return (
                                 <div key={socio.id} className="group/item flex items-center justify-between p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-white border border-gray-100 hover:shadow-lg hover:border-gray-200/50 transition-all duration-300 hover:-translate-y-1">
                                     <div className="flex items-center gap-5">
-                                        <div className={`p-3.5 rounded-xl ${tienePagos ? 'bg-green-100' : 'bg-orange-100'} shadow-md transition-transform duration-300 group-hover/item:scale-110`}>
-                                            <DollarSign className={`w-6 h-6 ${tienePagos ? 'text-green-600' : 'text-orange-600'}`} />
+                                        <div className={`p-3.5 rounded-xl ${iconTone(status)} shadow-md transition-transform duration-300 group-hover/item:scale-110`}>
+                                            <DollarSign className="w-6 h-6" />
                                         </div>
                                         <div>
                                             <p className="font-bold text-gray-950 text-lg group-hover/item:text-gray-800 transition-colors">{socio.name}</p>
-                                            <p className="text-sm text-gray-500 font-medium">{socio.apartment}</p>
+                                            <p className="text-sm text-gray-500 font-medium">
+                                                {socio.apartment}
+                                                {balance?.oldestDueDate ? ` · Vence desde ${balance.oldestDueDate}` : ''}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className={`text-3xl font-extrabold tracking-tight bg-gradient-to-r ${tienePagos ? 'from-green-600 to-emerald-600' : 'from-orange-600 to-yellow-600'} bg-clip-text text-transparent`}>${totalPagado.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                        <div className={`inline-flex items-center gap-1.5 mt-1 text-xs font-bold ${tienePagos ? 'text-green-700' : 'text-orange-700'}`}>
-                                            {tienePagos ? <CheckCircle className="w-3 h-3" /> : <CircleAlert className="w-3 h-3" />}
-                                            {socoPagos.length} {socoPagos.length === 1 ? 'pago' : 'pagos'}
+                                        <p className={`text-3xl font-extrabold tracking-tight bg-gradient-to-r ${hasProblem ? 'from-red-600 to-orange-600' : 'from-green-600 to-emerald-600'} bg-clip-text text-transparent`}>
+                                            ${(hasProblem ? overdue : totalPagado).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </p>
+                                        <div className={`inline-flex items-center gap-1.5 mt-1 text-xs font-bold ${statusColor(status)}`}>
+                                            {hasProblem ? <CircleAlert className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                                            {statusLabel(status)}
+                                            {outstanding > 0 ? ` · pendiente $${outstanding.toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : ''}
                                         </div>
                                     </div>
                                 </div>

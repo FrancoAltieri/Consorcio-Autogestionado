@@ -3,6 +3,9 @@ import { useParams } from 'react-router';
 import { getAllSocios } from '@/services/sociosService';
 import { getAllGastos, saveGasto } from '@/services/gastosService';
 import { authService } from '@/services/authService';
+import { pagoService } from '@/services/pagosService';
+import { currentPeriod, ensurePeriodInList } from '@/utils/period';
+import { getGastosByPeriod } from '@/services/gastosService';
 
 export interface Socio {
     id: number;
@@ -42,6 +45,8 @@ export function useGastos() {
     const [filter, setFilter] = useState<'todos' | 'aprobados' | 'pendientes'>('todos');
     const [socios, setSocios] = useState<Socio[]>([]);
     const [gastos, setGastos] = useState<Gasto[]>([]);
+    const [periodOptions, setPeriodOptions] = useState<string[]>([]);
+    const [selectedPeriod, setSelectedPeriod] = useState<string>(currentPeriod());
     const [formData, setFormData] = useState(initialFormData);
     const [fieldErrors, setFieldErrors] = useState(initialFieldErrors);
     const [submitError, setSubmitError] = useState('');
@@ -94,6 +99,30 @@ export function useGastos() {
         }
     };
 
+    const fetchGastosByPeriod = async (period: string) => {
+        if (!consorcioId) return;
+        try {
+            const data = await getGastosByPeriod(consorcioId, period);
+            setGastos(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Error fetching gastos by period:', error);
+        }
+    };
+
+    const fetchAvailablePeriods = async () => {
+        if (!consorcioId) return;
+        try {
+            const periods = await pagoService.getAvailablePeriods(consorcioId);
+            const current = currentPeriod();
+            const finalPeriods = ensurePeriodInList(periods, current);
+            setPeriodOptions(finalPeriods);
+            setSelectedPeriod(current);
+            await fetchGastosByPeriod(current);
+        } catch (error) {
+            console.error('Error fetching available periods for gastos:', error);
+        }
+    };
+
     const handleSaveGastos = async () => {
         if (!consorcioId || !validateForm()) return;
 
@@ -136,7 +165,11 @@ export function useGastos() {
             try {
                 const sociosData = await getAllSocios(consorcioId);
                 setSocios(sociosData);
-                await handleGetAllGastos();
+                await fetchAvailablePeriods();
+                // keep compatibility: if no periods available, load all
+                if (!periodOptions || periodOptions.length === 0) {
+                    await handleGetAllGastos();
+                }
             } finally {
                 setLoading(false);
             }
@@ -163,6 +196,28 @@ export function useGastos() {
 
     const totalGastosMonto = filteredGastos.filter((g) => g.approved).reduce((sum, g) => sum + g.amount, 0);
 
+    const addMonthsToPeriod = (period: string, delta: number) => {
+        const parts = period.split('-');
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        const d = new Date(y, m - 1 + delta, 1);
+        const ny = d.getFullYear();
+        const nm = String(d.getMonth() + 1).padStart(2, '0');
+        return `${ny}-${nm}-01`;
+    };
+
+    const handlePrevPeriod = async () => {
+        const prev = addMonthsToPeriod(selectedPeriod, -1);
+        setSelectedPeriod(prev);
+        await fetchGastosByPeriod(prev);
+    };
+
+    const handleNextPeriod = async () => {
+        const next = addMonthsToPeriod(selectedPeriod, 1);
+        setSelectedPeriod(next);
+        await fetchGastosByPeriod(next);
+    };
+
     return {
         loading,
         showDialog,
@@ -181,6 +236,11 @@ export function useGastos() {
         handleFieldChange,
         closeDialog,
         handleSaveGastos,
+        periodOptions,
+        selectedPeriod,
+        fetchGastosByPeriod,
+        handlePrevPeriod,
+        handleNextPeriod,
     } as const;
 }
 

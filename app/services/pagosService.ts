@@ -76,8 +76,10 @@ export const pagoService = {
         });
     },
 
-    async getSociosAlDia(consorcioId: string | number): Promise<number> {
-        const url = `${baseUrl}/socios-al-dia?consorcioId=${consorcioId}`;
+    async getSociosAlDia(consorcioId: string | number, period?: string): Promise<number> {
+        const params = new URLSearchParams({ consorcioId: String(consorcioId) });
+        if (period) params.set('period', period);
+        const url = `${baseUrl}/socios-al-dia?${params.toString()}`;
 
         const response = await fetch(url, {
             method: "GET",
@@ -88,25 +90,20 @@ export const pagoService = {
 
         const data = await response.json();
         return data.amount || 0;
-    }
-
-    // Te dejo los métodos comentados por si los necesitás habilitar luego
-    /*
-    async deletePago(id: number) {
-        const url = `${baseUrl}/delete/${id}`;
-        return fetch(url, {
-            method: "DELETE",
-            headers: getAuthHeaders()
-        });
     },
 
-    async updatePago(pago: Pago) {
-        const url = `${baseUrl}/edit`;
-        return fetch(url, {
-            method: "PUT",
-            headers: getAuthHeaders(),
-            body: JSON.stringify(pago)
+    async getAvailablePeriods(consorcioId: string | number): Promise<string[]> {
+        const url = `${import.meta.env.VITE_API_BASE_URL}/periods?consorcioId=${consorcioId}`;
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: getAuthHeaders()
         });
+
+        if (!response.ok) throw new Error("Error al obtener los períodos disponibles");
+
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
     }
-    */
+
 };

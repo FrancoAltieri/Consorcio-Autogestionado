@@ -4,6 +4,7 @@ import { pagoService } from '@/services/pagosService';
 import { getAllSocios } from '@/services/sociosService';
 import { getDebtForPartner } from '@/services/gastosService';
 import { authService } from '@/services/authService';
+import { BalanceSocio, getBalance } from '@/services/balanceService';
 
 export interface Pago {
     id?: number;
@@ -28,18 +29,24 @@ export interface Gasto {
     id: number;
     description: string;
     amount: number;
+    dueDate?: string;
+    status?: 'PAGADA' | 'PENDIENTE' | 'VENCIDA' | 'EN_MORA';
+    daysOverdue?: number;
+    daysInMorosity?: number;
 }
 
 export default function usePagos() {
     const { consorcioId } = useParams<{ consorcioId: string }>();
 
     const currentYear = new Date().getFullYear();
-    const months = [
-        { val: '01', name: 'Enero' }, { val: '02', name: 'Febrero' }, { val: '03', name: 'Marzo' },
-        { val: '04', name: 'Abril' }, { val: '05', name: 'Mayo' }, { val: '06', name: 'Junio' },
-        { val: '07', name: 'Julio' }, { val: '08', name: 'Agosto' }, { val: '09', name: 'Septiembre' },
-        { val: '10', name: 'Octubre' }, { val: '11', name: 'Noviembre' }, { val: '12', name: 'Diciembre' }
-    ];
+
+    // Generate month names dynamically (no hardcoded month list)
+    const months = Array.from({ length: 12 }).map((_, i) => {
+        const monthIndex = i; // 0-based
+        const date = new Date(2020, monthIndex, 1);
+        const name = date.toLocaleDateString('es-ES', { month: 'long' });
+        return { val: String(i + 1).padStart(2, '0'), name: name.charAt(0).toUpperCase() + name.slice(1) };
+    });
 
     const initialFormData = {
         expenseId: '',
@@ -62,14 +69,17 @@ export default function usePagos() {
     const [paymentFile, setPaymentFile] = useState<File | null>(null);
     const [selectedFilterMonth, setSelectedFilterMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
     const [selectedFilterYear, setSelectedFilterYear] = useState(currentYear.toString());
+    const [periodOptions, setPeriodOptions] = useState<string[]>([]);
+    const [selectedPeriod, setSelectedPeriod] = useState<string>(`${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`);
     const [sociosAlDia, setSociosAlDia] = useState(0);
+    const [partnerBalances, setPartnerBalances] = useState<BalanceSocio[]>([]);
 
     const totalPagos = filteredPagosList.reduce((sum, p) => sum + (p.amount || 0), 0);
 
     const getSocioAlDia = async () => {
         if (!consorcioId) return;
         try {
-            const cantidad = await pagoService.getSociosAlDia(consorcioId);
+            const cantidad = await pagoService.getSociosAlDia(consorcioId, selectedPeriod);
             setSociosAlDia(cantidad || 0);
         } catch (error) {
             console.error('Error fetching socios al dia:', error);
@@ -89,17 +99,46 @@ export default function usePagos() {
         }
     };
 
-    const fetchFilteredPagos = async (month: string, year: string) => {
+    const addMonthsToPeriod = (period: string, delta: number) => {
+        const parts = period.split('-');
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        const d = new Date(y, m - 1 + delta, 1);
+        const ny = d.getFullYear();
+        const nm = String(d.getMonth() + 1).padStart(2, '0');
+        return `${ny}-${nm}-01`;
+    };
+
+    const fetchFilteredPagosByPeriod = async (period: string) => {
         if (!consorcioId) return;
         setLoading(true);
         try {
-            const periodFilter = `${year}-${month}-01`;
-            const data = await pagoService.getPagosByPeriod(consorcioId, periodFilter);
+            const [data, balance] = await Promise.all([
+                pagoService.getPagosByPeriod(consorcioId, period),
+                getBalance(consorcioId, period)
+            ]);
             setFilteredPagosList(Array.isArray(data) ? data : []);
+            setPartnerBalances(balance.perPartnerBalance || []);
+            setSociosAlDia(Math.max((balance.perPartnerBalance || []).length - (balance.countPartnersWithOverdueDebt || 0), 0));
         } catch (error) {
             console.error('Error fetching pagos by period:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchAvailablePeriods = async () => {
+        if (!consorcioId) return;
+        try {
+            const periods = await pagoService.getAvailablePeriods(consorcioId);
+            setPeriodOptions(periods || []);
+            // choose default period: current month if present, otherwise last available
+            const currentPeriod = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+            const defaultPeriod = (periods && periods.includes(currentPeriod)) ? currentPeriod : (periods && periods.length > 0 ? periods[periods.length - 1] : currentPeriod);
+            setSelectedPeriod(defaultPeriod);
+            await fetchFilteredPagosByPeriod(defaultPeriod);
+        } catch (error) {
+            console.error('Error fetching available periods:', error);
         }
     };
 
@@ -141,7 +180,7 @@ export default function usePagos() {
                 }
 
                 await fetchAllPagos();
-                await fetchFilteredPagos(selectedFilterMonth, selectedFilterYear);
+                await fetchAvailablePeriods();
                 await getSocioAlDia();
             } finally {
                 setLoading(false);
@@ -171,7 +210,9 @@ export default function usePagos() {
     const handleFilterChange = (month: string, year: string) => {
         setSelectedFilterMonth(month);
         setSelectedFilterYear(year);
-        fetchFilteredPagos(month, year);
+        const periodFilter = `${year}-${month}-01`;
+        setSelectedPeriod(periodFilter);
+        fetchFilteredPagosByPeriod(periodFilter);
     };
 
     const handleAddPago = async () => {
@@ -205,7 +246,7 @@ export default function usePagos() {
             const response: any = await pagoService.savePago(nuevoPago, paymentFile as File);
             if (response.ok) {
                 await fetchAllPagos();
-                await fetchFilteredPagos(selectedFilterMonth, selectedFilterYear);
+                await fetchFilteredPagosByPeriod(selectedPeriod);
                 setShowDialog(false);
                 setFormData(initialFormData);
                 setPaymentFile(null);
@@ -227,6 +268,18 @@ export default function usePagos() {
         const date = new Date(Number(parts[0]), Number(parts[1]) - 1);
         const month = date.toLocaleDateString('es-ES', { month: 'long' });
         return month.charAt(0).toUpperCase() + month.slice(1) + ' ' + parts[0];
+    };
+
+    const handlePrevPeriod = async () => {
+        const prev = addMonthsToPeriod(selectedPeriod, -1);
+        setSelectedPeriod(prev);
+        await fetchFilteredPagosByPeriod(prev);
+    };
+
+    const handleNextPeriod = async () => {
+        const next = addMonthsToPeriod(selectedPeriod, 1);
+        setSelectedPeriod(next);
+        await fetchFilteredPagosByPeriod(next);
     };
 
     const getMontoPendientePorGasto = (gastoId: number, socioId: number): number => {
@@ -258,12 +311,17 @@ export default function usePagos() {
         selectedFilterMonth,
         selectedFilterYear,
         sociosAlDia,
+        partnerBalances,
         months,
         currentYear,
+        periodOptions,
+        selectedPeriod,
+        fetchFilteredPagosByPeriod, // 👈 Esta es la que tu PagosMain necesita
+        handlePrevPeriod,
+        handleNextPeriod,
         totalPagos,
         getSocioAlDia,
         fetchAllPagos,
-        fetchFilteredPagos,
         fetchSocios,
         fetchGastos,
         handleFieldChange,

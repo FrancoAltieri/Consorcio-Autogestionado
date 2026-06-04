@@ -1,6 +1,6 @@
-import { gastosService, Gasto } from './gastosService';
-import { pagoService, Pago } from './pagosService'; // Asegurate que el nombre del archivo sea el que unificamos
-import { getAllSocios } from './sociosService';
+import { authService } from './authService';
+import { Gasto } from './gastosService';
+import { Pago } from './pagosService';
 
 export interface Socio {
     id: number;
@@ -19,49 +19,35 @@ export interface DashboardSummary {
     gastosAprobados: number;
     gastosPendientes: number;
     sociosEnMora: number;
+    sociosConDeudaVencida: number;
     totalSocios: number;
+    deudaTotalVencida: number;
+    deudaTotalEnMora: number;
+    porcentajeSociosMorosos: number;
     socios: Socio[];
     gastos: Gasto[];
     pagos: Pago[];
 }
 
 export const dashboardService = {
-    async getDashboardSummary(consorcioId: string | number): Promise<DashboardSummary> {
+    async getDashboardSummary(consorcioId: string | number, period?: string): Promise<DashboardSummary> {
         try {
-            // Obtenemos todo en paralelo pasando el consorcioId a todos
-            const [socios, gastos, pagos] = await Promise.all([
-                getAllSocios(consorcioId),
-                gastosService.getAllGastos(consorcioId),
-                pagoService.getAllPagos(consorcioId), // Ahora sí usamos el filtro del backend
-            ]);
+            const baseUrl = import.meta.env.VITE_API_BASE_URL + '/dashboard';
+            const params = new URLSearchParams({ consorcioId: String(consorcioId) });
+            if (period) params.set('period', period);
 
-            // Calculamos los totales directamente (ya vienen filtrados de la DB)
-            const totalGastos = gastos.reduce((sum, g) => sum + g.amount, 0);
-            const totalPagos = pagos.reduce((sum, p) => sum + p.amount, 0);
+            const response = await fetch(`${baseUrl}?${params.toString()}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authService.getToken()}`,
+                },
+            });
 
-            // Lógica de Mora (falta desarrollar bien esta parte)
-            // Comparamos lo que pagó cada socio vs lo que le correspondía por participación
-            const sociosEnMora = socios.filter(s => {
-                const pagosSocio = pagos.filter(p => p.partnerId === s.id);
-                const totalPagoSocio = pagosSocio.reduce((sum, p) => sum + p.amount, 0);
+            if (!response.ok) throw new Error('Error al obtener resumen del dashboard');
 
-                // El socio debe aportar su % de los gastos totales
-                const debeAportar = (totalGastos * s.participation) / 100;
-
-                return totalPagoSocio < debeAportar;
-            }).length;
-
-            return {
-                totalGastos,
-                totalPagos,
-                gastosAprobados: gastos.length,
-                gastosPendientes: 0,
-                sociosEnMora,
-                totalSocios: socios.length,
-                socios,
-                gastos,
-                pagos,
-            };
+            const data = await response.json();
+            return data;
         } catch (error) {
             console.error('Error al obtener resumen del dashboard:', error);
             throw error;

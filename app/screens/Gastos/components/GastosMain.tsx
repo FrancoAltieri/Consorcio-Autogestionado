@@ -4,6 +4,8 @@ import { NewGastoDialog } from './NewGastoDialog';
 import { GastosStats } from './GastosStats';
 import { GastosLoading } from './GastosLoading';
 import { MovementsList } from './MovementsList';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatPeriodToMonthYear } from '@/utils/period';
 
 export function GastosMain() {
     const {
@@ -23,6 +25,11 @@ export function GastosMain() {
         handleFieldChange,
         closeDialog,
         handleSaveGastos,
+        periodOptions,
+        selectedPeriod,
+        fetchGastosByPeriod,
+        handlePrevPeriod,
+        handleNextPeriod,
     } = useGastos();
 
     if (loading) return <GastosLoading />;
@@ -54,12 +61,32 @@ export function GastosMain() {
                 <div className="p-8">
                     <div className="flex items-center justify-between mb-8">
                         <h3 className={`text-2xl font-bold bg-gradient-to-r from-sky-600 to-indigo-600 bg-clip-text text-transparent`}>Movimientos</h3>
-                        <div className="flex bg-gray-100/50 p-1 rounded-xl border border-gray-100">
-                            {(['todos'] as const).map((f) => (
-                                <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === f ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500'}`}>
-                                    {f.toUpperCase()}
-                                </button>
-                            ))}
+                        <div className="flex items-center gap-2">
+                            <button onClick={handlePrevPeriod} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-gray-700 border border-gray-200`}>‹</button>
+                            <div className="w-56">
+                                <Select value={selectedPeriod} onValueChange={(val: string) => { fetchGastosByPeriod(val); }}>
+                                    <SelectTrigger className="rounded-xl text-sm py-2 border-gray-200 focus:border-blue-500 transition-colors">
+                                        <SelectValue placeholder="Seleccionar período" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {periodOptions && periodOptions.length > 0 ? (
+                                            periodOptions.map((p) => (
+                                                <SelectItem key={p} value={p}>{formatPeriodToMonthYear(p)}</SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value={selectedPeriod}>{formatPeriodToMonthYear(selectedPeriod)}</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <button onClick={handleNextPeriod} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-gray-700 border border-gray-200`}>›</button>
+                            <div className="flex bg-gray-100/50 p-1 rounded-xl border border-gray-100">
+                                {(['todos'] as const).map((f) => (
+                                    <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === f ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500'}`}>
+                                        {f.toUpperCase()}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
