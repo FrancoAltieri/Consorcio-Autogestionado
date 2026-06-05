@@ -1,11 +1,11 @@
 import { createBrowserRouter } from "react-router";
 import { RootLayout } from "@/layouts/RootLayout";
-import { Dashboard } from "@/screens/Dashboard";
-import { Socios } from "@/screens/Socios";
-import { Gastos } from "@/screens/Gastos";
-import { Pagos } from "@/screens/Pagos";
-import { Balance } from "@/screens/Balance";
-import { Reportes } from "@/screens/Reportes";
+import { Dashboard } from '../screens/Dashboard'
+import { Socios } from '../screens/Socios/Socios'
+import { Gastos } from '../screens/Gastos/Gastos'
+import { Pagos } from '../screens/Pagos/Pagos'
+import { Balance } from '../screens/Balance/Balance'
+import { Reportes } from '../screens/Reportes/Reportes'
 import { Configuracion } from "@/screens/Configuracion";
 import Landing from "@/screens/Landing";
 import Login from "@/screens/Login";

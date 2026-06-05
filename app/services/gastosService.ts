@@ -46,6 +46,19 @@ export async function getApprovedGastos(consorcioId: string | number) {
     return Array.isArray(data.response) ? data.response : [];
 }
 
+export async function getGastosByPeriod(consorcioId: string | number, period: string) {
+    const url = `${baseUrl}/period?consorcioId=${consorcioId}&period=${period}`;
+    const response = await fetch(url, {
+        method: "GET",
+        headers: getAuthHeaders()
+    });
+
+    if (!response.ok) throw new Error("Error al obtener los gastos por período");
+
+    const data = await response.json();
+    return Array.isArray(data.response) ? data.response : [];
+}
+
 export async function getDebtForPartner(partnerId: string | number, consorcioId: string | number) {
     const url = debtUrl + `/all?consorcioId=${consorcioId}&partnerId=${partnerId}`;
     const response = await fetch(url, {

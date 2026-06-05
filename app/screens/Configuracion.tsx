@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, CheckCircle, Loader2, Settings, Users, Code, User } from 'lucide-react';
 import { consorcioService, ConsorcioData } from '../services/consorcioService';
+import { consorcioSettingsService, ConsorcioSettings } from '../services/consorcioSettingsService';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export function Configuracion() {
@@ -19,6 +20,14 @@ export function Configuracion() {
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [hasChanges, setHasChanges] = useState(false);
+
+    // Configuración de mora
+    const [settings, setSettings] = useState<ConsorcioSettings | null>(null);
+    const [interestRate, setInterestRate] = useState('3.0');
+    const [graceDays, setGraceDays] = useState('0');
+    const [fixedPenalty, setFixedPenalty] = useState('0.0');
+    const [isSavingSettings, setIsSavingSettings] = useState(false);
+    const [hasSettingsChanges, setHasSettingsChanges] = useState(false);
 
     useEffect(() => {
         if (!consorcioId) return;
@@ -35,6 +44,13 @@ export function Configuracion() {
 
                 setConsorcio(data);
                 setNombreInput(data.nombre);
+
+                // Cargar configuración de mora
+                const config = await consorcioSettingsService.getSettings(consorcioId);
+                setSettings(config);
+                setInterestRate(config.monthlyInterestRate.toString());
+                setGraceDays(config.gracePeriodDays.toString());
+                setFixedPenalty(config.fixedPenalty.toString());
             } catch (error) {
                 setErrorMessage(
                     error instanceof Error ? error.message : 'Error al cargar la configuración'
@@ -52,6 +68,16 @@ export function Configuracion() {
             setHasChanges(nombreInput.trim() !== consorcio.nombre && nombreInput.trim() !== '');
         }
     }, [nombreInput, consorcio]);
+
+    useEffect(() => {
+        if (settings) {
+            const hasChanges =
+                interestRate !== settings.monthlyInterestRate.toString() ||
+                graceDays !== settings.gracePeriodDays.toString() ||
+                fixedPenalty !== settings.fixedPenalty.toString();
+            setHasSettingsChanges(hasChanges);
+        }
+    }, [interestRate, graceDays, fixedPenalty, settings]);
 
     const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setNombreInput(e.target.value);
@@ -91,6 +117,44 @@ export function Configuracion() {
         if (consorcio) {
             setNombreInput(consorcio.nombre);
             setHasChanges(false);
+            setErrorMessage('');
+            setSuccessMessage('');
+        }
+    };
+
+    const handleSaveSettings = async () => {
+        if (!consorcioId) return;
+
+        try {
+            setIsSavingSettings(true);
+            setErrorMessage('');
+            setSuccessMessage('');
+
+            const updated = await consorcioSettingsService.updateSettings(consorcioId, {
+                monthlyInterestRate: parseFloat(interestRate) || 0,
+                gracePeriodDays: parseInt(graceDays) || 0,
+                fixedPenalty: parseFloat(fixedPenalty) || 0,
+            });
+
+            setSettings(updated);
+            setHasSettingsChanges(false);
+            setSuccessMessage('Configuración de mora del consorcio actualizada exitosamente');
+            setTimeout(() => setSuccessMessage(''), 3000);
+        } catch (error) {
+            setErrorMessage(
+                error instanceof Error ? error.message : 'Error al guardar la configuración de mora'
+            );
+        } finally {
+            setIsSavingSettings(false);
+        }
+    };
+
+    const handleCancelSettings = () => {
+        if (settings) {
+            setInterestRate(settings.monthlyInterestRate.toString());
+            setGraceDays(settings.gracePeriodDays.toString());
+            setFixedPenalty(settings.fixedPenalty.toString());
+            setHasSettingsChanges(false);
             setErrorMessage('');
             setSuccessMessage('');
         }
@@ -230,6 +294,104 @@ export function Configuracion() {
                                 Cancelar
                             </Button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Configuración de Mora */}
+            <div className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 shadow-xl shadow-gray-100/50 hover:shadow-2xl transition-all duration-500 hover:border-gray-200/50">
+                <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${theme.iconGradient}`}></div>
+                <div className="p-8">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 className={`text-2xl font-bold bg-gradient-to-r ${theme.textGradient} bg-clip-text text-transparent`}>
+                                Configuración de Mora e Intereses
+                            </h3>
+                            <p className="text-base text-gray-500 mt-1">Establece las reglas de penalización por pagos atrasados</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        {/* Tasa mensual */}
+                        <div className="space-y-2">
+                            <Label htmlFor="interestRate" className="text-base font-bold text-gray-900">
+                                Interés Mensual (%)
+                            </Label>
+                            <Input
+                                id="interestRate"
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                value={interestRate}
+                                onChange={(e) => setInterestRate(e.target.value)}
+                                disabled={isSavingSettings}
+                                className="rounded-xl text-base py-3 border-gray-200 focus:border-blue-500 transition-colors"
+                                placeholder="Ej: 3.0"
+                            />
+                            <p className="text-xs text-gray-500">Porcentaje de recargo mensual por mora (prorrateado por día)</p>
+                        </div>
+
+                        {/* Días de gracia */}
+                        <div className="space-y-2">
+                            <Label htmlFor="graceDays" className="text-base font-bold text-gray-900">
+                                Días de Gracia
+                            </Label>
+                            <Input
+                                id="graceDays"
+                                type="number"
+                                min="0"
+                                value={graceDays}
+                                onChange={(e) => setGraceDays(e.target.value)}
+                                disabled={isSavingSettings}
+                                className="rounded-xl text-base py-3 border-gray-200 focus:border-blue-500 transition-colors"
+                                placeholder="Ej: 5"
+                            />
+                            <p className="text-xs text-gray-500">Días adicionales después del vencimiento antes de cobrar intereses</p>
+                        </div>
+
+                        {/* Recargo fijo */}
+                        <div className="space-y-2">
+                            <Label htmlFor="fixedPenalty" className="text-base font-bold text-gray-900">
+                                Recargo Fijo ($)
+                            </Label>
+                            <Input
+                                id="fixedPenalty"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={fixedPenalty}
+                                onChange={(e) => setFixedPenalty(e.target.value)}
+                                disabled={isSavingSettings}
+                                className="rounded-xl text-base py-3 border-gray-200 focus:border-blue-500 transition-colors"
+                                placeholder="Ej: 500"
+                            />
+                            <p className="text-xs text-gray-500">Monto fijo que se cobra una sola vez al entrar en mora (opcional)</p>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4 border-t border-gray-100">
+                        <Button
+                            onClick={handleSaveSettings}
+                            disabled={!hasSettingsChanges || isSavingSettings}
+                            className={`px-6 py-2.5 rounded-xl font-semibold bg-gradient-to-r ${theme.iconGradient} text-white shadow-lg hover:shadow-xl transition-all duration-300 ${!hasSettingsChanges || isSavingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isSavingSettings ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Guardando...
+                                </>
+                            ) : (
+                                'Guardar configuración de mora'
+                            )}
+                        </Button>
+                        <Button
+                            onClick={handleCancelSettings}
+                            disabled={!hasSettingsChanges || isSavingSettings}
+                            variant="outline"
+                            className="px-6 py-2.5 rounded-xl font-semibold border-gray-200 hover:bg-gray-50 transition-all duration-300"
+                        >
+                            Cancelar
+                        </Button>
                     </div>
                 </div>
             </div>
