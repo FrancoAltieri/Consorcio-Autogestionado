@@ -18,12 +18,15 @@ export interface BalanceSocio {
     outstandingDebt: number;
     overdueDebt: number;
     moroseDebt: number;
+    accumulatedInterest: number;
+    totalOwedWithInterest: number;
     pendingDebts: number;
     overdueDebts: number;
     moroseDebts: number;
     debtStatus: 'PAGADA' | 'PENDIENTE' | 'VENCIDA' | 'EN_MORA';
     nextDueDate?: string | null;
     oldestDueDate?: string | null;
+    gastosRealizados?: number;
 }
 
 export interface BalanceDeConsorcio {
@@ -33,6 +36,7 @@ export interface BalanceDeConsorcio {
     totalMora: number;
     totalOverdueDebt: number;
     totalMoroseDebt: number;
+    totalAccruedInterest: number;
     countExpenses: number;
     countPayments: number;
     countDebtsPending: number;
@@ -45,7 +49,7 @@ export interface BalanceDeConsorcio {
     perPartnerBalance: BalanceSocio[];
 }
 
-export async function getBalance(consorcioId: string | number, period?: string) {
+export async function getBalance(consorcioId: string | number, period?: string): Promise<BalanceDeConsorcio> {
         const params = new URLSearchParams({ consorcioId: String(consorcioId) });
         if (period) params.set('period', period);
         const url = `${baseUrl}?${params.toString()}`;
@@ -77,6 +81,8 @@ export async function getBalance(consorcioId: string | number, period?: string) 
                                 outstandingDebt: Number(balanceSocio.outstandingDebt ?? 0),
                                 overdueDebt: Number(balanceSocio.overdueDebt ?? 0),
                                 moroseDebt: Number(balanceSocio.moroseDebt ?? 0),
+                                accumulatedInterest: Number(balanceSocio.accumulatedInterest ?? 0),
+                                totalOwedWithInterest: Number(balanceSocio.totalOwedWithInterest ?? 0),
                                 pendingDebts: Number(balanceSocio.pendingDebts ?? 0),
                                 overdueDebts: Number(balanceSocio.overdueDebts ?? 0),
                                 moroseDebts: Number(balanceSocio.moroseDebts ?? 0),
@@ -96,6 +102,7 @@ export async function getBalance(consorcioId: string | number, period?: string) 
                 totalMora: totalMora,
                 totalOverdueDebt: Number(balance.totalOverdueDebt ?? 0),
                 totalMoroseDebt: Number(balance.totalMoroseDebt ?? totalMora),
+                totalAccruedInterest: Number(balance.totalAccruedInterest ?? 0),
                 countExpenses: Number(balance.countExpenses ?? 0),
                 countPayments: Number(balance.countPayments ?? 0),
                 countDebtsPending: Number(balance.countDebtsPending ?? 0),

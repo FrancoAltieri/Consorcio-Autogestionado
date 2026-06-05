@@ -44,17 +44,20 @@ export default function BalanceMain() {
 
     const chartData = balanceData.perPartnerBalance || [];
 
-    // Normalize and sort data by outstanding amount (debt - payments) desc
+    // Normalize and sort data by total owed desc
     const sortedChartData = [...chartData].map((p: any) => ({
         name: p.name || 'Socio',
         debt: Number(p.debt ?? 0),
         payments: Number(p.payments ?? 0),
         overdueDebt: Number(p.overdueDebt ?? 0),
         moroseDebt: Number(p.moroseDebt ?? 0),
+        interest: Number(p.accumulatedInterest ?? 0),
+        totalOwed: Number(p.totalOwedWithInterest ?? 0),
         status: p.debtStatus ?? 'PAGADA',
-    })).sort((a: any, b: any) => ((b.overdueDebt || b.debt - b.payments) - (a.overdueDebt || a.debt - a.payments)));
+    })).sort((a: any, b: any) => ((b.totalOwed || b.debt - b.payments) - (a.totalOwed || a.debt - a.payments)));
 
     const totalMora = balanceData.totalMoroseDebt ?? balanceData.totalMora ?? 0;
+    const totalMoraConInteres = totalMora + (balanceData.totalAccruedInterest ?? 0);
     const sociosEnMora = balanceData.countPartnersInMorosity ?? 0;
     const sociosConVencida = balanceData.countPartnersWithOverdueDebt ?? 0;
     const sociosAFavor = sortedChartData.filter((socio: any) => (socio.payments ?? 0) > (socio.debt ?? 0)).length;
@@ -190,9 +193,12 @@ export default function BalanceMain() {
                                 <span className="text-xs font-bold text-orange-700">Total</span>
                             </div>
                         </div>
-                        <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Total Mora</h3>
-                        <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent">
-                            ${totalMora.toLocaleString('es-AR', { maximumFractionDigits: 2 })}
+                        <h3 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-widest">Mora + Interés</h3>
+                        <p className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent mb-2">
+                            ${totalMoraConInteres.toLocaleString('es-AR', { maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-gray-500 font-semibold">
+                            Capital: ${totalMora.toLocaleString('es-AR', { maximumFractionDigits: 2 })} | Int: ${(balanceData.totalAccruedInterest ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 2 })}
                         </p>
                     </div>
                 </div>
@@ -241,6 +247,7 @@ export default function BalanceMain() {
                                     <Bar dataKey="debt" fill="url(#gradDebt)" name="Debe" radius={[12, 12, 0, 0]} animationDuration={1500} />
                                     <Bar dataKey="payments" fill="url(#gradPaid)" name="Pagos" radius={[12, 12, 0, 0]} animationDuration={1500} />
                                     <Bar dataKey="overdueDebt" fill="#f97316" name="Deuda Vencida" radius={[12, 12, 0, 0]} animationDuration={1500} />
+                                    <Bar dataKey="interest" fill="#ef4444" name="Interés Acumulado" radius={[12, 12, 0, 0]} animationDuration={1500} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -270,41 +277,49 @@ export default function BalanceMain() {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-gray-200">
-                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Socio</th>
-                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Gastos</th>
-                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Pagos</th>
-                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Debe Aportar</th>
-                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Pendiente</th>
-                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Vencida</th>
-                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">En Mora</th>
-                                        <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Estado</th>
+                                        <th className="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Socio</th>
+                                        <th className="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Gastos</th>
+                                        <th className="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Pagos</th>
+                                        <th className="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Debe Aportar</th>
+                                        <th className="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Pendiente</th>
+                                        <th className="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Vencida</th>
+                                        <th className="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">En Mora</th>
+                                        <th className="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Interés</th>
+                                        <th className="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Total</th>
+                                        <th className="px-4 py-4 text-left font-bold text-gray-700 uppercase tracking-widest text-xs">Estado</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {balanceData.perPartnerBalance.map((balance: any) => (
                                         <tr key={balance.partnerId} className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-colors">
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <div className="font-semibold text-gray-900">{balance.name}</div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <p className="font-bold text-gray-900">${((balance as any).gastosRealizados ?? 0).toLocaleString('es-AR')}</p>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <p className="font-bold text-green-600">${balance.payments}</p>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <p className="font-bold text-blue-600">${balance.debt}</p>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <p className="font-bold text-orange-600">{(balance.outstandingDebt ?? 0) > 0 ? `$${Number(balance.outstandingDebt).toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <p className="font-bold text-orange-700">{(balance.overdueDebt ?? 0) > 0 ? `$${Number(balance.overdueDebt).toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
                                                 <p className="font-bold text-red-700">{(balance.moroseDebt ?? 0) > 0 ? `$${Number(balance.moroseDebt).toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4">
+                                                <p className="font-bold text-red-600">{(balance.accumulatedInterest ?? 0) > 0 ? `$${Number(balance.accumulatedInterest).toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <p className="font-bold text-indigo-950">{(balance.totalOwedWithInterest ?? 0) > 0 ? `$${Number(balance.totalOwedWithInterest).toLocaleString('es-AR', { maximumFractionDigits: 2 })}` : '-'}</p>
+                                            </td>
+                                            <td className="px-4 py-4">
                                                 <Badge className={`${statusBadge(balance.debtStatus)} border-0 font-semibold`}>
                                                     {statusLabel(balance.debtStatus)}
                                                 </Badge>

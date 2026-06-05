@@ -24,6 +24,7 @@ export interface DashboardSummary {
     deudaTotalVencida: number;
     deudaTotalEnMora: number;
     porcentajeSociosMorosos: number;
+    totalInterestAccrued: number;
     socios: Socio[];
     gastos: Gasto[];
     pagos: Pago[];

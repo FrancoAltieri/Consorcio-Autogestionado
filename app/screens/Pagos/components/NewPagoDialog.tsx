@@ -101,25 +101,41 @@ export function NewPagoDialog({ open, onOpenChange, formData, months, currentYea
                                 )}
                             </SelectContent>
                         </Select>
-                        {formData.expenseId && (
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">
                                 {(() => {
                                     const selectedDebt = gastosList.find((gasto) => String(gasto.id) === formData.expenseId);
                                     if (!selectedDebt) return <p className="text-xs font-medium text-gray-500">Selecciona una deuda pendiente.</p>;
                                     return (
-                                        <div className="flex items-center justify-between gap-3">
-                                            <div>
-                                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Vencimiento</p>
-                                                <p className="text-sm font-semibold text-gray-900">{selectedDebt.dueDate ?? '-'}</p>
+                                        <>
+                                            <div className="flex items-center justify-between gap-3 pb-2 border-b border-gray-200/50">
+                                                <div>
+                                                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Vencimiento</p>
+                                                    <p className="text-sm font-semibold text-gray-900">{selectedDebt.dueDate ?? '-'}</p>
+                                                </div>
+                                                <Badge className={`${statusClass(selectedDebt.status)} border-0 font-semibold`}>
+                                                    {statusLabel(selectedDebt.status)}
+                                                </Badge>
                                             </div>
-                                            <Badge className={`${statusClass(selectedDebt.status)} border-0 font-semibold`}>
-                                                {statusLabel(selectedDebt.status)}
-                                            </Badge>
-                                        </div>
+                                            <div className="space-y-1.5 text-sm font-medium">
+                                                <div className="flex justify-between text-gray-600">
+                                                    <span>Cuota (Capital)</span>
+                                                    <span>${selectedDebt.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </div>
+                                                {(selectedDebt.interestAccrued ?? 0) > 0 && (
+                                                    <div className="flex justify-between text-red-600">
+                                                        <span>Interés por Mora</span>
+                                                        <span>+${(selectedDebt.interestAccrued ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between font-bold text-gray-900 pt-1.5 border-t border-gray-200/50">
+                                                    <span>Total a Pagar</span>
+                                                    <span>${(selectedDebt.totalOwed ?? selectedDebt.amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </div>
+                                            </div>
+                                        </>
                                     );
                                 })()}
                             </div>
-                        )}
                     </div>
 
                     <div className="space-y-2">

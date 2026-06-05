@@ -140,20 +140,23 @@ export function downloadExcel(
             .sort((a, b) => (n(b.debt) - n(b.payments)) - (n(a.debt) - n(a.payments)));
 
         const totalPend = morosos.reduce((acc, p) => acc + n(p.debt) - n(p.payments), 0);
+        const totalInterest = morosos.reduce((acc, p) => acc + n(p.accumulatedInterest), 0);
+        const totalOwed = morosos.reduce((acc, p) => acc + n(p.totalOwedWithInterest), 0);
 
         const data: any[][] = [
             [`REPORTE DE MOROSIDAD — ${fp.toUpperCase()}`],
             [`Emitido el ${ts}`],
             [],
-            ['Socios morosos:',  morosos.length, '', 'Total pendiente:', f2(totalPend)],
-            ['Total socios:',    all.length,     '', 'Mora acumulada:',  f2(n(reporte.totalMora))],
+            ['Socios morosos:',  morosos.length, '', 'Total Pendiente Capital:', f2(totalPend)],
+            ['Total socios:',    all.length,     '', 'Interés Acumulado:',       f2(reporte.totalAccruedInterest)],
+            ['Total Moroso:',    f2(totalOwed),  '', '',                         ''],
             [],
         ];
 
         if (morosos.length === 0) {
             data.push(['Sin socios morosos en este período.']);
         } else {
-            data.push(['#', 'Socio', 'Cuota', 'Pagado', '% Pagado', 'Pendiente']);
+            data.push(['#', 'Socio', 'Cuota', 'Pagado', 'Pendiente', 'Interés', 'Total']);
             morosos.forEach((p, i) => {
                 const debt = n(p.debt), payments = n(p.payments);
                 data.push([
@@ -161,15 +164,16 @@ export function downloadExcel(
                     p.name ?? '-',
                     f2(debt),
                     f2(payments),
-                    pct(payments, debt),
                     f2(debt - payments),
+                    f2(p.accumulatedInterest),
+                    f2(p.totalOwedWithInterest),
                 ]);
             });
             data.push([]);
-            data.push(['', 'TOTAL PENDIENTE', '', '', '', f2(totalPend)]);
+            data.push(['', 'TOTALES', '', '', f2(totalPend), f2(totalInterest), f2(totalOwed)]);
         }
 
-        XLSX.utils.book_append_sheet(wb, makeSheet(data, [6, 32, 18, 18, 12, 18]), 'Morosidad');
+        XLSX.utils.book_append_sheet(wb, makeSheet(data, [6, 32, 18, 18, 18, 18, 18]), 'Morosidad');
     }
 
     XLSX.writeFile(wb, `${type}_${period}.xlsx`);

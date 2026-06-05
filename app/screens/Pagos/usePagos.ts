@@ -33,6 +33,9 @@ export interface Gasto {
     status?: 'PAGADA' | 'PENDIENTE' | 'VENCIDA' | 'EN_MORA';
     daysOverdue?: number;
     daysInMorosity?: number;
+    interestAccrued?: number;
+    totalOwed?: number;
+    expenseId?: number;
 }
 
 export default function usePagos() {
@@ -231,14 +234,14 @@ export default function usePagos() {
 
         const formattedPeriod = `${formData.selectedYear}-${formData.selectedMonth}-01`;
 
-        const nuevoPago: Partial<Pago> = {
+        const nuevoPago: any = {
             partnerId: currentSocio.id,
-            expenseId: Number(formData.expenseId),
+            debtId: Number(formData.expenseId),
             paymentDate: formData.paymentDate,
             period: formattedPeriod,
             paymentMethod: formData.paymentMethod,
             amount: Number((formData as any).amount) || 0,
-            // description optionally included
+            description: formData.description
         };
 
         setIsSubmittingPayment(true);
@@ -287,11 +290,15 @@ export default function usePagos() {
         const currentSocio = sociosList.find(s => s.id === socioId);
         if (!gasto || !currentSocio) return 0;
 
+        const targetExpenseId = gasto.expenseId ?? gasto.id;
         const montoPagado = allPagosList
-            .filter(p => p.expenseId === gastoId && p.partnerId === socioId)
+            .filter(p => p.expenseId === targetExpenseId && p.partnerId === socioId)
             .reduce((sum, p) => sum + (p.amount || 0), 0);
-        const userParticipation = currentSocio.participation || 0;
-        const montoTotal = (gasto.amount * userParticipation) / 100;
+        
+        // CORRECCIÓN DEL BUG DE DOBLE DIVISIÓN:
+        // El monto de la deuda ya está prorrateado en el backend, no se vuelve a dividir.
+        // Además sumamos intereses de mora si existen.
+        const montoTotal = gasto.totalOwed ?? gasto.amount;
 
         return Math.max(0, montoTotal - montoPagado);
     };

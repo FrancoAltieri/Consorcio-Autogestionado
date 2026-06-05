@@ -375,6 +375,8 @@ export function downloadMorosidadPDF(reporte: any, period: string): void {
         .sort((a, b) => (n(b.debt) - n(b.payments)) - (n(a.debt) - n(a.payments)));
 
     const totalPend = morosos.reduce((acc, p) => acc + n(p.debt) - n(p.payments), 0);
+    const totalInterest = morosos.reduce((acc, p) => acc + n(p.accumulatedInterest), 0);
+    const totalOwed = morosos.reduce((acc, p) => acc + n(p.totalOwedWithInterest), 0);
     const pctMor    = all.length > 0
         ? `${((morosos.length / all.length) * 100).toFixed(1)}%`
         : '0%';
@@ -382,8 +384,8 @@ export function downloadMorosidadPDF(reporte: any, period: string): void {
     y = addKPIRow(doc, [
         { label: 'Socios Morosos',   value: `${morosos.length} / ${all.length}`, color: C.red    },
         { label: '% Morosidad',      value: pctMor,                              color: C.red    },
-        { label: 'Total Pendiente',  value: fmt(totalPend),                      color: C.red    },
-        { label: 'Mora Acumulada',   value: fmt(reporte.totalMora),              color: C.orange },
+        { label: 'Interés Acum.',    value: fmt(reporte.totalAccruedInterest),   color: C.orange },
+        { label: 'Total Moroso',     value: fmt(totalOwed),                      color: C.red    },
     ], y);
 
     if (morosos.length === 0) {
@@ -399,33 +401,36 @@ export function downloadMorosidadPDF(reporte: any, period: string): void {
         const rows = morosos.map((p: any, i) => {
             const debt = n(p.debt), payments = n(p.payments);
             const pending = debt - payments;
-            const pct = debt > 0 ? `${((payments / debt) * 100).toFixed(1)}%` : '0%';
+            const interest = n(p.accumulatedInterest);
+            const total = n(p.totalOwedWithInterest);
             return [
                 String(i + 1),
                 p.name ?? '-',
                 fmt(debt),
                 fmt(payments),
-                pct,
-                { content: fmt(pending), styles: { textColor: C.red, fontStyle: 'bold', halign: 'right' } },
+                fmt(pending),
+                fmt(interest),
+                { content: fmt(total), styles: { textColor: C.red, fontStyle: 'bold', halign: 'right' } },
             ];
         });
 
         autoTable(doc, {
             startY: y,
-            head: [['#', 'Socio', 'Cuota', 'Pagado', '% Pagado', 'Pendiente']],
+            head: [['#', 'Socio', 'Cuota', 'Pagado', 'Pendiente', 'Interés', 'Total']],
             body: rows,
-            foot: [['', 'TOTAL PENDIENTE', '', '', '', fmt(totalPend)]],
+            foot: [['', 'TOTALES', '', '', fmt(totalPend), fmt(totalInterest), fmt(totalOwed)]],
             headStyles: { fillColor: C.red, textColor: C.white, fontStyle: 'bold', fontSize: 9 } as any,
             bodyStyles: { fontSize: 9, textColor: C.dark } as any,
             alternateRowStyles: { fillColor: [255, 241, 242] } as any,
             footStyles: { fillColor: [255, 228, 230], textColor: C.red, fontStyle: 'bold' } as any,
             columnStyles: {
                 0: { cellWidth: 10, halign: 'center' },
-                1: { cellWidth: 55 },
+                1: { cellWidth: 45 },
                 2: { halign: 'right' },
                 3: { halign: 'right' },
                 4: { halign: 'right' },
                 5: { halign: 'right' },
+                6: { halign: 'right' },
             },
             margin: { left: 14, right: 14, bottom: 20 },
         });

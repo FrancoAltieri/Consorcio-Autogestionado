@@ -90,7 +90,7 @@ export function StatsCards({ dashboardData, gastosPendientes }: Props) {
             ${Number(dashboardData.deudaTotalVencida ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
           </p>
           <p className="mt-2 text-xs font-semibold text-orange-700">
-            En mora: ${Number(dashboardData.deudaTotalEnMora ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+            En mora: ${Number(dashboardData.deudaTotalEnMora ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })} | Int: ${Number(dashboardData.totalInterestAccrued ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
           </p>
         </div>
       </div>
